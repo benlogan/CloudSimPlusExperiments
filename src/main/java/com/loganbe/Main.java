@@ -3,6 +3,8 @@ package com.loganbe;
 import org.cloudsimplus.brokers.DatacenterBroker;
 import org.cloudsimplus.brokers.DatacenterBrokerSimple;
 import org.cloudsimplus.builders.tables.CloudletsTableBuilder;
+import org.cloudsimplus.builders.tables.CsvTable;
+import org.cloudsimplus.builders.tables.HtmlTable;
 import org.cloudsimplus.cloudlets.Cloudlet;
 import org.cloudsimplus.cloudlets.CloudletSimple;
 import org.cloudsimplus.core.CloudSimPlus;
@@ -34,8 +36,9 @@ public class Main {
     private static final int VM_STORAGE = 10_000;
 
     // TODO throwing more cloudlets at the sim doesn't work, not a great start...
+    // I'm also confused about the cloudlet cores - if the app is dual core, would you not expect it to complete quicker?
     private static final int CLOUDLETS = 4;
-    private static final int CLOUDLET_PES = 2;
+    private static final int CLOUDLET_PES = 2; // NOT how many cores to use, rather how many are needed!
     private static final int CLOUDLET_LENGTH = 10_000; // Million Instructions (MI)
 
     private static final double CLOUDLET_UTILISATION = 0.5; // 50%
@@ -74,6 +77,8 @@ public class Main {
 
         final var cloudletFinishedList = broker0.getCloudletFinishedList();
         new CloudletsTableBuilder(cloudletFinishedList).build();
+        //new CloudletsTableBuilder(cloudletFinishedList, new CsvTable()).build();
+        //new CloudletsTableBuilder(cloudletFinishedList, new HtmlTable()).build();
     }
 
     // create a Datacenter and its Hosts
