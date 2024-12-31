@@ -5,6 +5,7 @@ import org.cloudsimplus.brokers.DatacenterBrokerSimple;
 import org.cloudsimplus.builders.tables.CloudletsTableBuilder;
 import org.cloudsimplus.builders.tables.CsvTable;
 import org.cloudsimplus.builders.tables.HtmlTable;
+import org.cloudsimplus.builders.tables.TableBuilderAbstract;
 import org.cloudsimplus.cloudlets.Cloudlet;
 import org.cloudsimplus.cloudlets.CloudletSimple;
 import org.cloudsimplus.core.CloudSimPlus;
@@ -20,11 +21,15 @@ import org.cloudsimplus.schedulers.cloudlet.CloudletSchedulerSpaceShared;
 import org.cloudsimplus.utilizationmodels.UtilizationModelDynamic;
 import org.cloudsimplus.vms.Vm;
 import org.cloudsimplus.vms.VmSimple;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 public class Main {
+
     private static final int  HOSTS = 1; // physical hosts
     private static final int  HOST_PES = 8; // processing element (cores)
     private static final int  HOST_MIPS = 1000; // Million Instructions per Second (MIPS)
@@ -34,7 +39,8 @@ public class Main {
 
     private static final int VMS = 2; // virtual hosts
     private static final int VM_PES = 4;
-    private static final int VM_RAM = 512;
+    private static final int VM_MIPS = 500;
+    private static final int VM_RAM = 1024;
     private static final int VM_BW = 1000;
     private static final int VM_STORAGE = 10_000;
 
@@ -46,16 +52,15 @@ public class Main {
     private static final int CLOUDLET_PES = 1; // NOT how many cores to use, rather how many are needed!
     private static final int CLOUDLET_LENGTH = 10_000; // Million Instructions (MI)
 
-    private static final double CLOUDLET_UTILISATION = 1; // 50%
-
-    // 1 app should take 10 seconds surely, but it takes 20, why is that?
-    // I'm using 50% utilisation!
+    private static final double CLOUDLET_UTILISATION = 1; // 100% (extent to which the job will utilise the CPU)
 
     private final CloudSimPlus simulation;
-    private final DatacenterBroker broker0;
+    private final DatacenterBroker broker;
     private List<Vm> vmList;
     private List<Cloudlet> cloudletList;
-    private Datacenter datacenter0;
+    private Datacenter datacenter;
+
+    public static final Logger LOGGER = LoggerFactory.getLogger(Main.class.getSimpleName());
 
     public static void main(String[] args) {
         new Main();
@@ -67,10 +72,10 @@ public class Main {
         //Log.setLevel(ch.qos.logback.classic.Level.WARN);
 
         simulation = new CloudSimPlus();
-        datacenter0 = createDatacenter();
+        datacenter = createDatacenter();
 
         // creates a broker; software acting on behalf of the cloud customer to manage their VMs & Cloudlets
-        broker0 = new DatacenterBrokerSimple(simulation);
+        broker = new DatacenterBrokerSimple(simulation);
         // briefly experimented with a queueing broker - I think that's what I need
         // or a process that batches/schedules based on capacity,
         // or that simply creates new cloudlets when others finish
@@ -79,19 +84,35 @@ public class Main {
         vmList = createVms();
         cloudletList = createCloudlets();
 
-        broker0.submitVmList(vmList);
-        broker0.submitCloudletList(cloudletList);
+        broker.submitVmList(vmList);
+        broker.submitCloudletList(cloudletList);
 
-        System.out.println("getMinTimeBetweenEvents : " + simulation.getMinTimeBetweenEvents() + "s");
+        // a scheduling interval is required to gather CPU utilisation statistics
+        // but it's causing other problems with the execution of the sim
+        //datacenter.setSchedulingInterval(1);
+        LOGGER.info("getSchedulingInterval : {}s", datacenter.getSchedulingInterval());
+
+        LOGGER.info("getMinTimeBetweenEvents : {}s", simulation.getMinTimeBetweenEvents());
         //simulation.terminateAt(100);
         simulation.start();
 
-        final var cloudletFinishedList = broker0.getCloudletFinishedList();
-        new CloudletsTableBuilder(cloudletFinishedList).build();
-        //new CloudletsTableBuilder(cloudletFinishedList, new CsvTable()).build();
-        //new CloudletsTableBuilder(cloudletFinishedList, new HtmlTable()).build();
+        // 1 app (10,000 MIs) on a 1000 MIs processor
+        // 1 app should take 10 seconds, but it takes 20, why is that?
+        // because the processor is halved at each VM
+        // note - dropping the cloudlet utilisation to 50% would have a similar effect!
 
-        new Power().printHostsCpuUtilizationAndPowerConsumption(hostList);
+        final var cloudletFinishedList = broker.getCloudletFinishedList();
+        new CloudletsTableBuilder(cloudletFinishedList).build();
+        //new CloudletsTableBuilder(cloudletFinishedList, new HtmlTable()).build();
+        //new CloudletsTableBuilder(cloudletFinishedList, new CsvTable()).build(); // replaced below
+
+        // output as csv for easy charting (new custom table type, to fetch csv as string)
+        TableBuilderAbstract tableBuilder = new CloudletsTableBuilder(cloudletFinishedList, new ExportCsvTable());
+        ExportCsvTable table = (ExportCsvTable) tableBuilder.getTable();
+        tableBuilder.build();
+        Utilities.writeCsv(table.getCsvString(), "data/sim_data_" + new Date().getTime() + ".csv");
+
+        //new Power().printHostsCpuUtilizationAndPowerConsumption(hostList);
     }
 
     public List hostList;
@@ -110,14 +131,7 @@ public class Main {
         }
 
         // uses a VmAllocationPolicySimple by default to allocate VMs
-        Datacenter dc = new DatacenterSimple(simulation, hostList);
-
-        // a scheduling interval is required to gather CPU utilisation statistics
-        // but it's causing other problems with the execution of the sim
-        //dc.setSchedulingInterval(1);
-        System.out.println("getSchedulingInterval : " + dc.getSchedulingInterval() + "s");
-
-        return dc;
+        return new DatacenterSimple(simulation, hostList);
     }
 
     private Host createHost() {
@@ -149,7 +163,7 @@ public class Main {
         final var vmList = new ArrayList<Vm>(VMS);
         for (int i = 0; i < VMS; i++) {
             // uses a CloudletSchedulerTimeShared by default to schedule Cloudlets
-            final var vm = new VmSimple(HOST_MIPS, VM_PES);
+            final var vm = new VmSimple(VM_MIPS, VM_PES);
 
             // TODO does this make sense - the VM has the same MIPS as the physical host?
             vm.setRam(VM_RAM).setBw(VM_BW).setSize(VM_STORAGE);
