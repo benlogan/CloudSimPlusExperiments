@@ -165,7 +165,6 @@ public class Main {
             // uses a CloudletSchedulerTimeShared by default to schedule Cloudlets
             final var vm = new VmSimple(VM_MIPS, VM_PES);
 
-            // TODO does this make sense - the VM has the same MIPS as the physical host?
             vm.setRam(VM_RAM).setBw(VM_BW).setSize(VM_STORAGE);
 
             // power work
