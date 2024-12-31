@@ -12,8 +12,11 @@ import org.cloudsimplus.datacenters.Datacenter;
 import org.cloudsimplus.datacenters.DatacenterSimple;
 import org.cloudsimplus.hosts.Host;
 import org.cloudsimplus.hosts.HostSimple;
+import org.cloudsimplus.listeners.EventInfo;
+import org.cloudsimplus.power.models.PowerModelHostSimple;
 import org.cloudsimplus.resources.Pe;
 import org.cloudsimplus.resources.PeSimple;
+import org.cloudsimplus.schedulers.cloudlet.CloudletSchedulerSpaceShared;
 import org.cloudsimplus.utilizationmodels.UtilizationModelDynamic;
 import org.cloudsimplus.vms.Vm;
 import org.cloudsimplus.vms.VmSimple;
@@ -35,13 +38,15 @@ public class Main {
     private static final int VM_BW = 1000;
     private static final int VM_STORAGE = 10_000;
 
-    // TODO throwing more cloudlets at the sim doesn't work, not a great start...
-    // I'm also confused about the cloudlet cores - if the app is dual core, would you not expect it to complete quicker?
-    private static final int CLOUDLETS = 4;
-    private static final int CLOUDLET_PES = 2; // NOT how many cores to use, rather how many are needed!
+    // TODO overloading cloudlets means the sim terminates early - why?
+    // need to properly understand Discrete Event Simulation basics
+    // fundamentally, this isn't accurate, there needs to be a delay in submitting them
+
+    private static final int CLOUDLETS = 8;
+    private static final int CLOUDLET_PES = 1; // NOT how many cores to use, rather how many are needed!
     private static final int CLOUDLET_LENGTH = 10_000; // Million Instructions (MI)
 
-    private static final double CLOUDLET_UTILISATION = 0.5; // 50%
+    private static final double CLOUDLET_UTILISATION = 1; // 50%
 
     // 1 app should take 10 seconds surely, but it takes 20, why is that?
     // I'm using 50% utilisation!
@@ -66,6 +71,10 @@ public class Main {
 
         // creates a broker; software acting on behalf of the cloud customer to manage their VMs & Cloudlets
         broker0 = new DatacenterBrokerSimple(simulation);
+        // briefly experimented with a queueing broker - I think that's what I need
+        // or a process that batches/schedules based on capacity,
+        // or that simply creates new cloudlets when others finish
+        // or just make them long life - is that not more realistic of the enterprise?
 
         vmList = createVms();
         cloudletList = createCloudlets();
@@ -73,26 +82,41 @@ public class Main {
         broker0.submitVmList(vmList);
         broker0.submitCloudletList(cloudletList);
 
+        System.out.println("getMinTimeBetweenEvents : " + simulation.getMinTimeBetweenEvents() + "s");
+        //simulation.terminateAt(100);
         simulation.start();
 
         final var cloudletFinishedList = broker0.getCloudletFinishedList();
         new CloudletsTableBuilder(cloudletFinishedList).build();
         //new CloudletsTableBuilder(cloudletFinishedList, new CsvTable()).build();
         //new CloudletsTableBuilder(cloudletFinishedList, new HtmlTable()).build();
+
+        new Power().printHostsCpuUtilizationAndPowerConsumption(hostList);
     }
+
+    public List hostList;
 
     // create a Datacenter and its Hosts
     private Datacenter createDatacenter() {
-        final var hostList = new ArrayList<Host>(HOSTS);
+        //final var hostList = new ArrayList<Host>(HOSTS);
+        hostList = new ArrayList<Host>(HOSTS);
         for(int i = 0; i < HOSTS; i++) {
             final var host = createHost();
+
+            // new for power work...
+            host.enableUtilizationStats();
+
             hostList.add(host);
         }
 
         // uses a VmAllocationPolicySimple by default to allocate VMs
         Datacenter dc = new DatacenterSimple(simulation, hostList);
-        //dc.setSchedulingInterval(10);
-        //System.out.println("Scheduling Interval : " + dc.getSchedulingInterval());
+
+        // a scheduling interval is required to gather CPU utilisation statistics
+        // but it's causing other problems with the execution of the sim
+        //dc.setSchedulingInterval(1);
+        System.out.println("getSchedulingInterval : " + dc.getSchedulingInterval() + "s");
+
         return dc;
     }
 
@@ -108,7 +132,16 @@ public class Main {
         Uses ResourceProvisionerSimple by default for RAM and BW provisioning
         and VmSchedulerSpaceShared for VM scheduling.
         */
-        return new HostSimple(HOST_RAM, HOST_BW, HOST_STORAGE, peList);
+
+        Host host = new HostSimple(HOST_RAM, HOST_BW, HOST_STORAGE, peList);
+
+        final var powerModel = new PowerModelHostSimple(com.loganbe.Power.MAX_POWER, com.loganbe.Power.STATIC_POWER);
+        powerModel
+                .setStartupPower(com.loganbe.Power.HOST_START_UP_POWER)
+                .setShutDownPower(com.loganbe.Power.HOST_SHUT_DOWN_POWER);
+        host.setPowerModel(powerModel);
+
+        return host;
     }
 
     // creates a list of VMs
@@ -117,8 +150,13 @@ public class Main {
         for (int i = 0; i < VMS; i++) {
             // uses a CloudletSchedulerTimeShared by default to schedule Cloudlets
             final var vm = new VmSimple(HOST_MIPS, VM_PES);
+
             // TODO does this make sense - the VM has the same MIPS as the physical host?
             vm.setRam(VM_RAM).setBw(VM_BW).setSize(VM_STORAGE);
+
+            // power work
+            vm.enableUtilizationStats();
+
             vmList.add(vm);
         }
 
