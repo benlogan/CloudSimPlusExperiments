@@ -185,7 +185,7 @@ public class PowerExample {
      * </p>
      *
      * <p>
-     * If we computer the power consumption for a single VM by
+     * If we compute the power consumption for a single VM by
      * calling {@code vm.getHost().getPowerModel().getPower(hostCpuUsage)},
      * we get the 50 W consumed by the VM, plus the 20 W of static power.
      * This adds up to 70 W. If the two VMs are equal and using the same amount of CPU,
