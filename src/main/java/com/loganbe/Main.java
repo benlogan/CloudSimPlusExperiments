@@ -15,8 +15,11 @@ import org.cloudsimplus.hosts.HostSimple;
 import org.cloudsimplus.power.models.PowerModelHostSimple;
 import org.cloudsimplus.resources.Pe;
 import org.cloudsimplus.resources.PeSimple;
+import org.cloudsimplus.schedulers.cloudlet.CloudletScheduler;
+import org.cloudsimplus.schedulers.cloudlet.CloudletSchedulerSpaceShared;
 import org.cloudsimplus.util.Log;
 import org.cloudsimplus.utilizationmodels.UtilizationModelDynamic;
+import org.cloudsimplus.utilizationmodels.UtilizationModelFull;
 import org.cloudsimplus.vms.Vm;
 import org.cloudsimplus.vms.VmSimple;
 import org.slf4j.Logger;
@@ -29,25 +32,27 @@ public class Main {
 
     private static final int  HOSTS = 1;                    // physical hosts
     private static final int  HOST_PES = 8;                 // processing element (cores)
-    private static final int  HOST_MIPS = 1000;             // Million Instructions Per Second (MIPS)
+    private static final int  HOST_MIPS = 1000;             // Million Instructions Per Second (MIPS). must also be per CORE (not for the CPU as a whole)
     private static final int  HOST_RAM = 2048;              // Megabytes (2GB)
-    private static final long HOST_BW = 10_000;             // Megabits/s (bandwidth)
+    private static final long HOST_BW = 10_000;             // Megabits/s (bandwidth) - network comms capacity (N/A for independent simulations?)
     private static final long HOST_STORAGE = 1_000_000;     // Megabytes (1000GB, or 1TB)
 
     private static final int VMS = 2;                       // virtual hosts
     private static final int VM_PES = 4;
-    private static final int VM_MIPS = 500;
+    private static final int VM_MIPS = 1000;                // this is per CORE, not per VM
     private static final int VM_RAM = 1024;
-    private static final int VM_BW = 1000;
+    private static final int VM_BW = 1000;                  // must be smaller than the host, doesn't impact execution time
     private static final int VM_STORAGE = 10_000;           // 10GB
 
     private static final int CLOUDLETS = 8;
     private static final int CLOUDLET_PES = 1;              // NOT how many cores to use, rather how many are needed!
     private static final int CLOUDLET_LENGTH = 10_000;      // Million Instructions (MI)
 
-    private static final double CLOUDLET_UTILISATION = .25; // % extent to which the job will utilise the CPU (and other resources? i.e. RAM)
+    private static final double CLOUDLET_UTILISATION = 1;   // % extent to which the job will utilise the CPU (other resources i.e. RAM are specified separately)
     // remember - because it's using less CPU, it will obviously take longer to complete
-    // if it utilises all the CPU, then you can't parallel run (you'd need 1 VM per job)
+    // if it utilises all the CPU, then you can't parallel run (you'd need 1 VM per job) - not true, this is core utilisation
+
+    CloudletScheduler scheduler = new CloudletSchedulerSpaceShared(); // experimenting with this, which should enable greater CPU utilisiation
 
     // defines the time intervals to keep hosts CPU utilisation history records
     // a scheduling interval is required to gather CPU utilisation statistics
@@ -203,10 +208,14 @@ public class Main {
     private List<Vm> createVms() {
         final var vmList = new ArrayList<Vm>(VMS);
         for (int i = 0; i < VMS; i++) {
-            // uses a CloudletSchedulerTimeShared by default to schedule Cloudlets
             final var vm = new VmSimple(VM_MIPS, VM_PES);
 
             vm.setRam(VM_RAM).setBw(VM_BW).setSize(VM_STORAGE);
+
+            // uses a CloudletSchedulerTimeShared by default to schedule Cloudlets
+            // likely won't result in full cpu utilisation
+            //vm.setCloudletScheduler(scheduler); // note - if I turn this on, I see queuing!
+            // if I leave it off, no queueing and jobs executing as fast as they theoretically can (but CPU not being fully utilised for some reason)
 
             // required for granular data collection (power)
             vm.enableUtilizationStats();
@@ -233,12 +242,21 @@ public class Main {
         final var cloudletList = new ArrayList<Cloudlet>(CLOUDLETS);
 
         // utilizationModel defining the Cloudlets use X% of any resource all the time
-        final var utilizationModel = new UtilizationModelDynamic(CLOUDLET_UTILISATION);
-        //UtilizationModelDynamic utilizationModel = new UtilizationModelDynamic(0.25); // 25% RAM
+
+        //final var utilizationModel = new UtilizationModelDynamic(CLOUDLET_UTILISATION);
+        final var utilizationModel = new UtilizationModelFull(); // not making a difference!
+
+        UtilizationModelDynamic utilizationModelMemory = new UtilizationModelDynamic(0.25); // 25% RAM
 
         for (int i = 0; i < CLOUDLETS; i++) {
+            // use 100% of CPU, i.e. one core each
             final var cloudlet = new CloudletSimple(CLOUDLET_LENGTH, CLOUDLET_PES, utilizationModel);
-            cloudlet.setSizes(1024);
+
+            //cloudlet.setSizes(1024);
+
+            // one core each but only 25% of the available memory (and bandwidth), to enable parallel execution
+            cloudlet.setUtilizationModelRam(utilizationModelMemory);
+            cloudlet.setUtilizationModelBw(utilizationModelMemory);
 
             /*
             cloudlet.addOnStartListener(event -> {
@@ -250,7 +268,16 @@ public class Main {
             });
 
             cloudlet.addOnUpdateProcessingListener(info -> {
-                LOGGER.trace("CLOUDLET UPDATE PROCESSING : " + info.getCloudlet().getId() + " time = " + info.getTime());
+                //LOGGER.trace("CLOUDLET UPDATE PROCESSING : " + info.getCloudlet().getId() + " time = " + info.getTime());
+
+                Vm vm0 = cloudletList.get(0).getVm();
+                Vm vm1 = cloudletList.get(1).getVm();
+
+                System.out.println("getCpuPercentRequested : " + vm0.getCpuPercentRequested());
+                System.out.println("getCpuPercentUtilization : " + vm0.getCpuPercentUtilization());
+                System.out.println("getTotalCpuMipsRequested : " + vm0.getTotalCpuMipsRequested());
+                System.out.println("getHostCpuUtilization : " + vm0.getHostCpuUtilization());
+                System.out.println("getHostRamUtilization : " + vm0.getHostRamUtilization());
             });
             */
 
