@@ -81,17 +81,18 @@ public class Power {
      */
     public static void printHostsCpuUtilizationAndPowerConsumption(List<Host> hostList) {
         System.out.println();
-        for (final Host host : hostList) {
+        for (Host host : hostList) {
             printHostCpuUtilizationAndPowerConsumption(host);
         }
         System.out.println();
         printTotalPower(hostList);
     }
 
-    public static void printHostCpuUtilizationAndPowerConsumption(final Host host) {
-        final HostResourceStats cpuStats = host.getCpuUtilizationStats();
+    public static void printHostCpuUtilizationAndPowerConsumption(Host host) {
+        HostResourceStats cpuStats = host.getCpuUtilizationStats();
 
-        // the total Host's CPU utilization for the time specified by the map key
+        // the total Host's CPU utilization for the time specified by the map key - what does that mean!?
+        // FIXME this doesn't appear to be fetching the correct mean! or at least not at the end of the simulation run!
         final double utilizationPercentMean = cpuStats.getMean();
         final double watts = host.getPowerModel().getPower(utilizationPercentMean);
         System.out.printf(

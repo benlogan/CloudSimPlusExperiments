@@ -12,6 +12,7 @@ import org.cloudsimplus.core.CloudSimPlus;
 import org.cloudsimplus.datacenters.Datacenter;
 import org.cloudsimplus.hosts.Host;
 import org.cloudsimplus.hosts.HostSimple;
+import org.cloudsimplus.hosts.HostSimpleFixed;
 import org.cloudsimplus.power.models.PowerModelHostSimple;
 import org.cloudsimplus.resources.Pe;
 import org.cloudsimplus.resources.PeSimple;
@@ -73,7 +74,7 @@ public class Main {
     private Main() {
         /*Enables just some level of log messages.
           Make sure to import org.cloudsimplus.util.Log;*/
-        Log.setLevel(ch.qos.logback.classic.Level.INFO); // THERE IS NO DEBUG LOGGING (AND ONLY MINIMAL TRACE)!
+        Log.setLevel(ch.qos.logback.classic.Level.TRACE); // THERE IS NO DEBUG LOGGING (AND ONLY MINIMAL TRACE)!
 
         simulation = new CloudSimPlus(0.01); // trying to ensure all events are processed, without any misses
 
@@ -148,7 +149,7 @@ public class Main {
         //new Power().printVmsCpuUtilizationAndPowerConsumption(vmList);
     }
 
-    public List hostList;
+    public List<Host> hostList;
 
     // create a Datacenter and its Hosts
     private Datacenter createDatacenter() {
@@ -186,7 +187,7 @@ public class Main {
         and VmSchedulerSpaceShared for VM scheduling.
         */
 
-        Host host = new HostSimple(HOST_RAM, HOST_BW, HOST_STORAGE, peList);
+        Host host = new HostSimpleFixed(HOST_RAM, HOST_BW, HOST_STORAGE, peList);
 
         final var powerModel = new PowerModelHostSimple(com.loganbe.Power.MAX_POWER, com.loganbe.Power.STATIC_POWER);
         powerModel
@@ -196,10 +197,14 @@ public class Main {
 
         host.enableUtilizationStats(); // needed to calculate energy usage
 
-        /*
+        ///*
         host.addOnUpdateProcessingListener(info -> {
             LOGGER.trace("HOST : UPDATE PROCESSING : time = " + info.getTime() + " next cloudlet completion time = " + info.getNextCloudletCompletionTime());
-        });*/
+            LOGGER.trace("HOST : getCpuPercentUtilization : " + info.getHost().getCpuPercentUtilization());
+            LOGGER.trace("HOST : MEAN : " + info.getHost().getCpuUtilizationStats().getMean());
+            new Power().printHostsCpuUtilizationAndPowerConsumption(hostList);
+        });
+        //*/
 
         return host;
     }
@@ -243,8 +248,8 @@ public class Main {
 
         // utilizationModel defining the Cloudlets use X% of any resource all the time
 
-        //final var utilizationModel = new UtilizationModelDynamic(CLOUDLET_UTILISATION);
-        final var utilizationModel = new UtilizationModelFull(); // not making a difference!
+        final var utilizationModel = new UtilizationModelDynamic(CLOUDLET_UTILISATION);
+        //final var utilizationModel = new UtilizationModelFull(); // not making a difference!
 
         UtilizationModelDynamic utilizationModelMemory = new UtilizationModelDynamic(0.25); // 25% RAM
 
@@ -258,7 +263,7 @@ public class Main {
             cloudlet.setUtilizationModelRam(utilizationModelMemory);
             cloudlet.setUtilizationModelBw(utilizationModelMemory);
 
-            /*
+            ///*
             cloudlet.addOnStartListener(event -> {
                 LOGGER.trace("CLOUDLET START : " + event.getCloudlet().getId() + " time = " + event.getTime());
             });
@@ -273,13 +278,14 @@ public class Main {
                 Vm vm0 = cloudletList.get(0).getVm();
                 Vm vm1 = cloudletList.get(1).getVm();
 
-                System.out.println("getCpuPercentRequested : " + vm0.getCpuPercentRequested());
-                System.out.println("getCpuPercentUtilization : " + vm0.getCpuPercentUtilization());
-                System.out.println("getTotalCpuMipsRequested : " + vm0.getTotalCpuMipsRequested());
-                System.out.println("getHostCpuUtilization : " + vm0.getHostCpuUtilization());
-                System.out.println("getHostRamUtilization : " + vm0.getHostRamUtilization());
+                //System.out.println("getCpuPercentRequested : " + vm0.getCpuPercentRequested());
+                System.out.println("getCpuPercentUtilization , " + vm0.getCpuPercentUtilization());
+                //System.out.println("getTotalCpuMipsRequested : " + vm0.getTotalCpuMipsRequested());
+                System.out.println("getHostCpuUtilization , " + vm0.getHostCpuUtilization());
+                // above is how much of this host THIS VM IS using (relative)! NOT the actual host utilisation...
+                System.out.println("getCpuPercentUtilization (host) , " + vm0.getHost().getCpuPercentUtilization());
             });
-            */
+            //*/
 
             cloudletList.add(cloudlet);
         }
