@@ -11,7 +11,6 @@ import org.cloudsimplus.cloudlets.CloudletSimple;
 import org.cloudsimplus.core.CloudSimPlus;
 import org.cloudsimplus.datacenters.Datacenter;
 import org.cloudsimplus.hosts.Host;
-import org.cloudsimplus.hosts.HostSimple;
 import org.cloudsimplus.hosts.HostSimpleFixed;
 import org.cloudsimplus.power.models.PowerModelHostSimple;
 import org.cloudsimplus.resources.Pe;
@@ -20,7 +19,6 @@ import org.cloudsimplus.schedulers.cloudlet.CloudletScheduler;
 import org.cloudsimplus.schedulers.cloudlet.CloudletSchedulerSpaceShared;
 import org.cloudsimplus.util.Log;
 import org.cloudsimplus.utilizationmodels.UtilizationModelDynamic;
-import org.cloudsimplus.utilizationmodels.UtilizationModelFull;
 import org.cloudsimplus.vms.Vm;
 import org.cloudsimplus.vms.VmSimple;
 import org.slf4j.Logger;
@@ -74,7 +72,7 @@ public class Main {
     private Main() {
         /*Enables just some level of log messages.
           Make sure to import org.cloudsimplus.util.Log;*/
-        Log.setLevel(ch.qos.logback.classic.Level.TRACE); // THERE IS NO DEBUG LOGGING (AND ONLY MINIMAL TRACE)!
+        Log.setLevel(ch.qos.logback.classic.Level.INFO); // THERE IS NO DEBUG LOGGING (AND ONLY MINIMAL TRACE)!
 
         simulation = new CloudSimPlus(0.01); // trying to ensure all events are processed, without any misses
 
@@ -132,6 +130,7 @@ public class Main {
         });*/
 
         //simulation.terminateAt(25);
+
         simulation.start();
 
         final var cloudletFinishedList = broker.getCloudletFinishedList();
@@ -153,11 +152,9 @@ public class Main {
 
     // create a Datacenter and its Hosts
     private Datacenter createDatacenter() {
-        //final var hostList = new ArrayList<Host>(HOSTS);
-        hostList = new ArrayList<Host>(HOSTS);
+        hostList = new ArrayList<>(HOSTS);
         for(int i = 0; i < HOSTS; i++) {
             final var host = createHost();
-
             hostList.add(host);
         }
 
@@ -197,14 +194,14 @@ public class Main {
 
         host.enableUtilizationStats(); // needed to calculate energy usage
 
-        ///*
+        /*
         host.addOnUpdateProcessingListener(info -> {
             LOGGER.trace("HOST : UPDATE PROCESSING : time = " + info.getTime() + " next cloudlet completion time = " + info.getNextCloudletCompletionTime());
             LOGGER.trace("HOST : getCpuPercentUtilization : " + info.getHost().getCpuPercentUtilization());
             LOGGER.trace("HOST : MEAN : " + info.getHost().getCpuUtilizationStats().getMean());
-            new Power().printHostsCpuUtilizationAndPowerConsumption(hostList);
+            // new Power().printHostsCpuUtilizationAndPowerConsumption(hostList); // useful to confirm expected end results
         });
-        //*/
+        */
 
         return host;
     }
@@ -257,13 +254,11 @@ public class Main {
             // use 100% of CPU, i.e. one core each
             final var cloudlet = new CloudletSimple(CLOUDLET_LENGTH, CLOUDLET_PES, utilizationModel);
 
-            //cloudlet.setSizes(1024);
-
             // one core each but only 25% of the available memory (and bandwidth), to enable parallel execution
             cloudlet.setUtilizationModelRam(utilizationModelMemory);
             cloudlet.setUtilizationModelBw(utilizationModelMemory);
 
-            ///*
+            /*
             cloudlet.addOnStartListener(event -> {
                 LOGGER.trace("CLOUDLET START : " + event.getCloudlet().getId() + " time = " + event.getTime());
             });
@@ -285,7 +280,7 @@ public class Main {
                 // above is how much of this host THIS VM IS using (relative)! NOT the actual host utilisation...
                 System.out.println("getCpuPercentUtilization (host) , " + vm0.getHost().getCpuPercentUtilization());
             });
-            //*/
+            */
 
             cloudletList.add(cloudlet);
         }

@@ -21,6 +21,8 @@ public class HostResourceStatsNew extends HostResourceStats {
         return super.add(time);
 
         // FIXME getting somewhere - I can now try to fix this bug, assuming it exists!
+        // WORKINGHERE - have a workaround, but would be good to fix this properly...
+
         // maybe a quick fix is that I don't let the machine become idle/inactive!?
         // YES, that worked. so definitely a bug!!! now finally reporting correctly 100% CPU usage
 

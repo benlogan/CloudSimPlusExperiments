@@ -1,40 +1,16 @@
-/*
- * Title: CloudSim Toolkit Description: CloudSim (Cloud Simulation) Toolkit for Modeling and
- * Simulation of Clouds Licence: GPL - http://www.gnu.org/copyleft/gpl.html
- *
- * Copyright (c) 2009-2012, The University of Melbourne, Australia
- */
 package org.cloudsimplus.hosts;
 
-import org.cloudsimplus.core.ChangeableId;
-import org.cloudsimplus.core.ResourceStatsComputer;
-import org.cloudsimplus.datacenters.Datacenter;
 import org.cloudsimplus.provisioners.ResourceProvisioner;
-import org.cloudsimplus.provisioners.ResourceProvisionerSimple;
 import org.cloudsimplus.resources.HarddriveStorage;
 import org.cloudsimplus.resources.Pe;
-import org.cloudsimplus.schedulers.vm.VmScheduler;
-import org.cloudsimplus.schedulers.vm.VmSchedulerSpaceShared;
-import org.cloudsimplus.vms.HostResourceStats;
 import org.cloudsimplus.vms.HostResourceStatsNew;
-import org.cloudsimplus.vms.Vm;
 
 import java.util.List;
 
-import static java.util.Objects.requireNonNull;
-
 /**
- * A Host class that implements the most basic features of a Physical Machine
- * (PM) inside a {@link Datacenter}. It executes actions related to management
- * of virtual machines (e.g., creation and destruction). A host has a defined
- * policy for provisioning memory and bw, as well as an allocation policy for
- * PEs to {@link Vm Virtual Machines}. A host is associated to a Datacenter and
- * can host virtual machines.
+ * A Host class extension to fix a critical bug with CPU utilisation reporting
  *
- * @author Rodrigo N. Calheiros
- * @author Anton Beloglazov
- * @author Manoel Campos da Silva Filho
- * @since CloudSim Toolkit 1.0
+ * @author Ben Logan
  */
 public class HostSimpleFixed extends HostSimple {
 
@@ -69,7 +45,7 @@ public class HostSimpleFixed extends HostSimple {
 
     @Override
     public boolean isIdle() {
-        // Prevent the host from becoming idle by always returning false
+        // Prevent the host from becoming idle by always returning false - a workaround to a major utilisation reporting bug
         return false;
     }
 
