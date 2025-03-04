@@ -1,5 +1,7 @@
 package com.loganbe;
 
+import com.loganbe.templates.SimSpecLarge;
+import com.loganbe.templates.SimSpecSimple;
 import org.cloudsimplus.allocationpolicies.VmAllocationPolicy;
 import org.cloudsimplus.allocationpolicies.VmAllocationPolicySimple;
 import org.cloudsimplus.brokers.DatacenterBroker;
@@ -29,30 +31,6 @@ import java.util.List;
 
 public class Main {
 
-    private static final int  HOSTS = 1;                    // physical hosts
-    private static final int  HOST_PES = 8;                 // processing element (cores)
-    private static final int  HOST_MIPS = 1000;             // Million Instructions Per Second (MIPS). must also be per CORE (not for the CPU as a whole)
-    private static final int  HOST_RAM = 2048;              // Megabytes (2GB)
-    private static final long HOST_BW = 10_000;             // Megabits/s (bandwidth) - network comms capacity (N/A for independent simulations?)
-    private static final long HOST_STORAGE = 1_000_000;     // Megabytes (1000GB, or 1TB)
-
-    private static final int VMS = 2;                       // virtual hosts
-    private static final int VM_PES = 4;
-    private static final int VM_MIPS = 1000;                // this is per CORE, not per VM
-    private static final int VM_RAM = 1024;
-    private static final int VM_BW = 1000;                  // must be smaller than the host, doesn't impact execution time
-    private static final int VM_STORAGE = 10_000;           // 10GB
-
-    private static final int CLOUDLETS = 8;
-    private static final int CLOUDLET_PES = 1;              // NOT how many cores to use, rather how many are needed!
-    private static final int CLOUDLET_LENGTH = 10_000;      // Million Instructions (MI)
-
-    private static final double CLOUDLET_UTILISATION = 1;   // % extent to which the job will utilise the CPU (other resources i.e. RAM are specified separately)
-    // remember - because it's using less CPU, it will obviously take longer to complete
-    // if it utilises all the CPU, then you can't parallel run (you'd need 1 VM per job) - not true, this is core utilisation
-
-    CloudletScheduler scheduler = new CloudletSchedulerSpaceShared(); // experimenting with this, which should enable greater CPU utilisiation
-
     // defines the time intervals to keep hosts CPU utilisation history records
     // a scheduling interval is required to gather CPU utilisation statistics
     private static final double SCHEDULING_INTERVAL = 0.1; // defaults to 0! i.e. continuous processing
@@ -62,6 +40,9 @@ public class Main {
     private List<Vm> vmList;
     private List<Cloudlet> cloudletList;
     private Datacenter datacenter;
+
+    //private SimSpecSimple simSpec;
+    private SimSpecLarge simSpec;
 
     public static final Logger LOGGER = LoggerFactory.getLogger(Main.class.getSimpleName());
 
@@ -73,6 +54,9 @@ public class Main {
         /*Enables just some level of log messages.
           Make sure to import org.cloudsimplus.util.Log;*/
         Log.setLevel(ch.qos.logback.classic.Level.INFO); // THERE IS NO DEBUG LOGGING (AND ONLY MINIMAL TRACE)!
+
+        //simSpec = new SimSpecSimple();
+        simSpec = new SimSpecLarge();
 
         simulation = new CloudSimPlus(0.01); // trying to ensure all events are processed, without any misses
 
@@ -145,15 +129,15 @@ public class Main {
         //Utilities.writeCsv(table.getCsvString(), "data/sim_data_" + new Date().getTime() + ".csv");
 
         new Power().printHostsCpuUtilizationAndPowerConsumption(hostList);
-        //new Power().printVmsCpuUtilizationAndPowerConsumption(vmList);
+        new Power().printVmsCpuUtilizationAndPowerConsumption(vmList);
     }
 
     public List<Host> hostList;
 
     // create a Datacenter and its Hosts
     private Datacenter createDatacenter() {
-        hostList = new ArrayList<>(HOSTS);
-        for(int i = 0; i < HOSTS; i++) {
+        hostList = new ArrayList<>(simSpec.HOSTS);
+        for(int i = 0; i < simSpec.HOSTS; i++) {
             final var host = createHost();
             hostList.add(host);
         }
@@ -172,11 +156,11 @@ public class Main {
     }
 
     private Host createHost() {
-        final var peList = new ArrayList<Pe>(HOST_PES);
+        final var peList = new ArrayList<Pe>(simSpec.HOST_PES);
         // list of Host's CPUs (Processing Elements, PEs)
-        for (int i = 0; i < HOST_PES; i++) {
+        for (int i = 0; i < simSpec.HOST_PES; i++) {
             // uses a PeProvisionerSimple by default to provision PEs for VMs
-            peList.add(new PeSimple(HOST_MIPS));
+            peList.add(new PeSimple(simSpec.HOST_MIPS));
         }
 
         /*
@@ -184,12 +168,12 @@ public class Main {
         and VmSchedulerSpaceShared for VM scheduling.
         */
 
-        Host host = new HostSimpleFixed(HOST_RAM, HOST_BW, HOST_STORAGE, peList);
+        Host host = new HostSimpleFixed(simSpec.HOST_RAM, simSpec.HOST_BW, simSpec.HOST_STORAGE, peList);
 
-        final var powerModel = new PowerModelHostSimple(com.loganbe.Power.MAX_POWER, com.loganbe.Power.STATIC_POWER);
+        final var powerModel = new PowerModelHostSimple(Power.MAX_POWER, Power.STATIC_POWER);
         powerModel
-                .setStartupPower(com.loganbe.Power.HOST_START_UP_POWER)
-                .setShutDownPower(com.loganbe.Power.HOST_SHUT_DOWN_POWER);
+                .setStartupPower(Power.HOST_START_UP_POWER)
+                .setShutDownPower(Power.HOST_SHUT_DOWN_POWER);
         host.setPowerModel(powerModel);
 
         host.enableUtilizationStats(); // needed to calculate energy usage
@@ -208,15 +192,15 @@ public class Main {
 
     // creates a list of VMs
     private List<Vm> createVms() {
-        final var vmList = new ArrayList<Vm>(VMS);
-        for (int i = 0; i < VMS; i++) {
-            final var vm = new VmSimple(VM_MIPS, VM_PES);
+        final var vmList = new ArrayList<Vm>(simSpec.VMS);
+        for (int i = 0; i < simSpec.VMS; i++) {
+            final var vm = new VmSimple(simSpec.VM_MIPS, simSpec.VM_PES);
 
-            vm.setRam(VM_RAM).setBw(VM_BW).setSize(VM_STORAGE);
+            vm.setRam(simSpec.VM_RAM).setBw(simSpec.VM_BW).setSize(simSpec.VM_STORAGE);
 
             // uses a CloudletSchedulerTimeShared by default to schedule Cloudlets
             // likely won't result in full cpu utilisation
-            //vm.setCloudletScheduler(scheduler); // note - if I turn this on, I see queuing!
+            //vm.setCloudletScheduler(simSpec.scheduler); // note - if I turn this on, I see queuing!
             // if I leave it off, no queueing and jobs executing as fast as they theoretically can (but CPU not being fully utilised for some reason)
 
             // required for granular data collection (power)
@@ -241,18 +225,18 @@ public class Main {
 
     // creates a list of Cloudlets (cloud applications)
     private List<Cloudlet> createCloudlets() {
-        final var cloudletList = new ArrayList<Cloudlet>(CLOUDLETS);
+        final var cloudletList = new ArrayList<Cloudlet>(simSpec.CLOUDLETS);
 
         // utilizationModel defining the Cloudlets use X% of any resource all the time
 
-        final var utilizationModel = new UtilizationModelDynamic(CLOUDLET_UTILISATION);
+        final var utilizationModel = new UtilizationModelDynamic(simSpec.CLOUDLET_UTILISATION);
         //final var utilizationModel = new UtilizationModelFull(); // not making a difference!
 
         UtilizationModelDynamic utilizationModelMemory = new UtilizationModelDynamic(0.25); // 25% RAM
 
-        for (int i = 0; i < CLOUDLETS; i++) {
+        for (int i = 0; i < simSpec.CLOUDLETS; i++) {
             // use 100% of CPU, i.e. one core each
-            final var cloudlet = new CloudletSimple(CLOUDLET_LENGTH, CLOUDLET_PES, utilizationModel);
+            final var cloudlet = new CloudletSimple(simSpec.CLOUDLET_LENGTH, simSpec.CLOUDLET_PES, utilizationModel);
 
             // one core each but only 25% of the available memory (and bandwidth), to enable parallel execution
             cloudlet.setUtilizationModelRam(utilizationModelMemory);

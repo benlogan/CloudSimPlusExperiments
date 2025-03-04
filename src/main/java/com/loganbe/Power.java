@@ -1,6 +1,7 @@
 package com.loganbe;
 
 import org.cloudsimplus.hosts.Host;
+import org.cloudsimplus.hosts.HostStateHistoryEntry;
 import org.cloudsimplus.power.models.PowerModel;
 import org.cloudsimplus.power.models.PowerModelHostSimple;
 import org.cloudsimplus.vms.HostResourceStats;

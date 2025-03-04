@@ -18,6 +18,7 @@ public class HostResourceStatsNew extends HostResourceStats {
 
     @Override
     public boolean add(final double time) {
+        //System.out.println("getCpuPercentUtilization : " + super.getMachine().getCpuPercentUtilization()); // for charting etc?
         return super.add(time);
 
         // FIXME getting somewhere - I can now try to fix this bug, assuming it exists!
