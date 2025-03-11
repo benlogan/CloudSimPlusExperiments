@@ -8,6 +8,7 @@ import org.cloudsimplus.vms.HostResourceStats;
 import org.cloudsimplus.vms.Vm;
 import org.cloudsimplus.vms.VmResourceStats;
 
+import java.text.DecimalFormat;
 import java.util.List;
 
 import static java.util.Comparator.comparingLong;
@@ -103,13 +104,24 @@ public class Power {
 
     public static void printTotalPower(List<Host> hostList) {
         double totalPower = 0;
+        double totalEnergy = 0;
         for (final Host host : hostList) {
             final HostResourceStats cpuStats = host.getCpuUtilizationStats();
             final double utilizationPercentMean = cpuStats.getMean();
             final double watts = host.getPowerModel().getPower(utilizationPercentMean);
             totalPower += watts;
+
+            double upTimeHours = host.getTotalUpTime() / 60 / 60;
+            double energy = watts * upTimeHours;
+            totalEnergy += energy;
         }
-        System.out.println("TOTAL POWER = " + totalPower + "W");
+        DecimalFormat df = new DecimalFormat("#");
+
+        System.out.println("Total Power = " + df.format(totalPower) + " W");
+        System.out.println();
+
+        DecimalFormat df1 = new DecimalFormat("#.#");
+        System.out.println("Total Energy = " + df.format(totalEnergy) + " Wh (" + df1.format(totalEnergy/1000) + " KWh)");
         System.out.println();
     }
 
