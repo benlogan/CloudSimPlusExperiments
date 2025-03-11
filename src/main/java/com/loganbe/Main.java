@@ -1,5 +1,6 @@
 package com.loganbe;
 
+import com.loganbe.templates.SimSpecBigCompany;
 import com.loganbe.templates.SimSpecSequentialSmall;
 import org.cloudsimplus.allocationpolicies.VmAllocationPolicy;
 import org.cloudsimplus.allocationpolicies.VmAllocationPolicySimple;
@@ -38,7 +39,7 @@ public class Main {
     private List<Cloudlet> cloudletList;
     private Datacenter datacenter;
 
-    private SimSpecSequentialSmall simSpec = new SimSpecSequentialSmall();
+    private SimSpecBigCompany simSpec = new SimSpecBigCompany();
 
     public static final Logger LOGGER = LoggerFactory.getLogger(Main.class.getSimpleName());
 
@@ -115,6 +116,8 @@ public class Main {
             LOGGER.error("Some Cloudlets Remain Unfinished : " + incomplete);
         }
 
+        LOGGER.info("Simulation End Time " + Math.round(simulation.clockInHours()) + "h");
+
         final var cloudletFinishedList = broker.getCloudletFinishedList();
         new CloudletsTableBuilder(cloudletFinishedList).build();
         //new CloudletsTableBuilder(cloudletFinishedList, new HtmlTable()).build();
@@ -189,6 +192,8 @@ public class Main {
 
     // creates a list of VMs
     private List<Vm> createVms() {
+        LOGGER.info("createVms, using scheduler : " + simSpec.scheduler);
+        LOGGER.info("createVms, creating " + simSpec.VMS + " VMs, across " + simSpec.HOSTS + " hosts");
         final var vmList = new ArrayList<Vm>(simSpec.VMS);
         for (int i = 0; i < simSpec.VMS; i++) {
             final var vm = new VmSimple(simSpec.VM_MIPS, simSpec.VM_PES);
@@ -200,7 +205,7 @@ public class Main {
             vm.setCloudletScheduler(simSpec.scheduler); // note - this is important, the choice can determine if queuing is supported!
             // if I leave it off (default) - time scheduler, then no queueing and jobs execute as fast as they theoretically can
 
-            LOGGER.info("getCloudletScheduler : " + vm.getCloudletScheduler());
+            //LOGGER.info("getCloudletScheduler : " + vm.getCloudletScheduler());
 
             // required for granular data collection (power)
             vm.enableUtilizationStats();
@@ -244,7 +249,7 @@ public class Main {
 
             // if a cloudlet finishes, assume it might have created capacity in the system for more processing!
             // shouldn't be necessary if you use a scheduler that supports queuing/waiting
-            /*
+
             cloudlet.addOnFinishListener(event -> {
                 LOGGER.info("CLOUDLET END (time) " + event.getTime());
 
@@ -258,6 +263,7 @@ public class Main {
                 // So this scheduler doesn't suit scenarios where you are overloading the hardware!
             });
 
+            /*
             cloudlet.addOnStartListener(event -> {
                 LOGGER.trace("CLOUDLET START : " + event.getCloudlet().getId() + " time = " + event.getTime());
             });
