@@ -26,6 +26,7 @@ import org.slf4j.LoggerFactory;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 public class Main {
@@ -135,6 +136,15 @@ public class Main {
         ExportCsvTable table = (ExportCsvTable) tableBuilder.getTable();
         tableBuilder.build();
         //Utilities.writeCsv(table.getCsvString(), "data/sim_data_" + new Date().getTime() + ".csv");
+
+        // FIXME WORKINGHERE
+        // these tables are very confusing and fundamentally wrong!
+        // I think this is what has been causing so much confusion
+        // the current version implies that cloudlet 0 runs exclusively at first, but only on host 0 and vm 0
+        // then we start on cloudlet 1 on host 1, on vm 1
+        // none of this is right. surely cloudlet 0 is actually being broken up and running on all cores simultaneously
+        // I think we need a host/vm/cores table that shows that view
+        // and the cloudlet view probably needs fixing to show multiple entries per row where appropriate
 
         new Power().printHostsCpuUtilizationAndPowerConsumption(hostList);
         //new Power().printVmsCpuUtilizationAndPowerConsumption(vmList);
