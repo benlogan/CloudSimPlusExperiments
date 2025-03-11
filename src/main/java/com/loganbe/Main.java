@@ -137,7 +137,7 @@ public class Main {
         //Utilities.writeCsv(table.getCsvString(), "data/sim_data_" + new Date().getTime() + ".csv");
 
         new Power().printHostsCpuUtilizationAndPowerConsumption(hostList);
-        new Power().printVmsCpuUtilizationAndPowerConsumption(vmList);
+        //new Power().printVmsCpuUtilizationAndPowerConsumption(vmList);
     }
 
     public List<Host> hostList;
@@ -260,12 +260,14 @@ public class Main {
             // shouldn't be necessary if you use a scheduler that supports queuing/waiting
 
             cloudlet.addOnFinishListener(event -> {
-                LOGGER.info("CLOUDLET END (time) " + event.getTime());
+                //LOGGER.info("CLOUDLET END (time) " + event.getTime());
 
                 //there might be a simpler way to do this! if they are already paused, there is resume functionality!
+                /*
                 LOGGER.info("WAITING? " + event.getVm().getCloudletScheduler().getCloudletWaitingList().size());
                 LOGGER.info("EXEC? " + event.getVm().getCloudletScheduler().getCloudletExecList().size());
                 LOGGER.info("FINISHED? " + event.getVm().getCloudletScheduler().getCloudletFinishedList().size());
+                */
 
                 totalAccumulatedMips = totalAccumulatedMips.add(BigInteger.valueOf(event.getCloudlet().getFinishedLengthSoFar()));
 

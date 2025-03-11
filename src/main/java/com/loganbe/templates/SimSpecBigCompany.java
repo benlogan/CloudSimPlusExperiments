@@ -13,7 +13,7 @@ import org.cloudsimplus.schedulers.cloudlet.CloudletSchedulerTimeShared;
  */
 public class SimSpecBigCompany {
 
-    public static final int HOSTS = 2;                     // physical hosts
+    public static final int HOSTS = 10;                    // physical hosts
     public static final int HOST_PES = 16;                 // processing element (cores)
     public static final int HOST_MIPS = 1000;              // Million Instructions Per Second (MIPS). must also be per CORE (not for the CPU as a whole)
     public static final int HOST_RAM = 2048;               // Megabytes (2GB)
