@@ -1,7 +1,6 @@
 package com.loganbe;
 
-import com.loganbe.templates.SimSpecLarge;
-import com.loganbe.templates.SimSpecSimple;
+import com.loganbe.templates.SimSpecSequentialSmall;
 import org.cloudsimplus.allocationpolicies.VmAllocationPolicy;
 import org.cloudsimplus.allocationpolicies.VmAllocationPolicySimple;
 import org.cloudsimplus.brokers.DatacenterBroker;
@@ -17,8 +16,6 @@ import org.cloudsimplus.hosts.HostSimpleFixed;
 import org.cloudsimplus.power.models.PowerModelHostSimple;
 import org.cloudsimplus.resources.Pe;
 import org.cloudsimplus.resources.PeSimple;
-import org.cloudsimplus.schedulers.cloudlet.CloudletScheduler;
-import org.cloudsimplus.schedulers.cloudlet.CloudletSchedulerSpaceShared;
 import org.cloudsimplus.util.Log;
 import org.cloudsimplus.utilizationmodels.UtilizationModelDynamic;
 import org.cloudsimplus.vms.Vm;
@@ -41,8 +38,7 @@ public class Main {
     private List<Cloudlet> cloudletList;
     private Datacenter datacenter;
 
-    //private SimSpecSimple simSpec;
-    private SimSpecLarge simSpec;
+    private SimSpecSequentialSmall simSpec = new SimSpecSequentialSmall();
 
     public static final Logger LOGGER = LoggerFactory.getLogger(Main.class.getSimpleName());
 
@@ -55,9 +51,6 @@ public class Main {
           Make sure to import org.cloudsimplus.util.Log;*/
         Log.setLevel(ch.qos.logback.classic.Level.INFO); // THERE IS NO DEBUG LOGGING (AND ONLY MINIMAL TRACE)!
 
-        //simSpec = new SimSpecSimple();
-        simSpec = new SimSpecLarge();
-
         simulation = new CloudSimPlus(0.01); // trying to ensure all events are processed, without any misses
 
         datacenter = createDatacenter();
@@ -68,7 +61,7 @@ public class Main {
         // perhaps one that creates new cloudlets when others finish - simulating open-ended execution
         // or just make them long life - is that not more realistic of the enterprise?
 
-        //broker.setVmDestructionDelay(30); // not making any difference
+        //broker.setVmDestructionDelay(100); // doesn't necessarily result in VM's hanging around to complete unfinished cloudlets!
 
         vmList = createVms();
         cloudletList = createCloudlets();
@@ -113,9 +106,14 @@ public class Main {
             LOGGER.trace("-------------------------------------------------------");
         });*/
 
-        //simulation.terminateAt(25);
+        //simulation.terminateAt(10000); // won't make any difference if you have unfinished cloudlets! (because the events have probably already been processed)
 
         simulation.start();
+
+        int incomplete = broker.getCloudletSubmittedList().size() - broker.getCloudletFinishedList().size();
+        if (incomplete > 0) {
+            LOGGER.error("Some Cloudlets Remain Unfinished : " + incomplete);
+        }
 
         final var cloudletFinishedList = broker.getCloudletFinishedList();
         new CloudletsTableBuilder(cloudletFinishedList).build();
@@ -143,7 +141,6 @@ public class Main {
         }
 
         // uses a VmAllocationPolicySimple by default to allocate VMs
-        //final var dc = new DatacenterSimple(simulation, hostList);
         final var dc = new DatacenterSimpleFixed(simulation, hostList); // this is the critical bug fix!
 
         VmAllocationPolicy vmAllocationPolicy = new VmAllocationPolicySimple();
@@ -199,14 +196,16 @@ public class Main {
             vm.setRam(simSpec.VM_RAM).setBw(simSpec.VM_BW).setSize(simSpec.VM_STORAGE);
 
             // uses a CloudletSchedulerTimeShared by default to schedule Cloudlets
-            // likely won't result in full cpu utilisation
-            //vm.setCloudletScheduler(simSpec.scheduler); // note - if I turn this on, I see queuing!
-            // if I leave it off, no queueing and jobs executing as fast as they theoretically can (but CPU not being fully utilised for some reason)
+            // may not always result in full cpu utilisation
+            vm.setCloudletScheduler(simSpec.scheduler); // note - this is important, the choice can determine if queuing is supported!
+            // if I leave it off (default) - time scheduler, then no queueing and jobs execute as fast as they theoretically can
+
+            LOGGER.info("getCloudletScheduler : " + vm.getCloudletScheduler());
 
             // required for granular data collection (power)
             vm.enableUtilizationStats();
 
-            //vm.setShutDownDelay(10);
+            //vm.setShutDownDelay(3000); // doesn't result in VM's hanging around to complete unfinished cloudlets!
 
             /*
             vm.addOnUpdateProcessingListener(info -> {
@@ -225,6 +224,7 @@ public class Main {
 
     // creates a list of Cloudlets (cloud applications)
     private List<Cloudlet> createCloudlets() {
+        LOGGER.info("Creating " + simSpec.CLOUDLETS + " Cloudlets");
         final var cloudletList = new ArrayList<Cloudlet>(simSpec.CLOUDLETS);
 
         // utilizationModel defining the Cloudlets use X% of any resource all the time
@@ -242,13 +242,24 @@ public class Main {
             cloudlet.setUtilizationModelRam(utilizationModelMemory);
             cloudlet.setUtilizationModelBw(utilizationModelMemory);
 
+            // if a cloudlet finishes, assume it might have created capacity in the system for more processing!
+            // shouldn't be necessary if you use a scheduler that supports queuing/waiting
             /*
-            cloudlet.addOnStartListener(event -> {
-                LOGGER.trace("CLOUDLET START : " + event.getCloudlet().getId() + " time = " + event.getTime());
+            cloudlet.addOnFinishListener(event -> {
+                LOGGER.info("CLOUDLET END (time) " + event.getTime());
+
+                //there might be a simpler way to do this! if they are already paused, there is resume functionality!
+                LOGGER.info("WAITING? " + event.getVm().getCloudletScheduler().getCloudletWaitingList().size());
+                LOGGER.info("EXEC? " + event.getVm().getCloudletScheduler().getCloudletExecList().size());
+                LOGGER.info("FINISHED? " + event.getVm().getCloudletScheduler().getCloudletFinishedList().size());
+
+                // for the default time scheduler, this waiting list is always empty, once the VM PEs are shared across all Cloudlets running inside a VM.
+                // each Cloudlet has the opportunity to use the PEs for a given time-slice.
+                // So this scheduler doesn't suit scenarios where you are overloading the hardware!
             });
 
-            cloudlet.addOnFinishListener(event -> {
-                LOGGER.trace("CLOUDLET END (time) " + event.getTime());
+            cloudlet.addOnStartListener(event -> {
+                LOGGER.trace("CLOUDLET START : " + event.getCloudlet().getId() + " time = " + event.getTime());
             });
 
             cloudlet.addOnUpdateProcessingListener(info -> {
