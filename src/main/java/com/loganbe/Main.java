@@ -24,6 +24,7 @@ import org.cloudsimplus.vms.VmSimple;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -117,6 +118,12 @@ public class Main {
         }
 
         LOGGER.info("Simulation End Time " + Math.round(simulation.clockInHours()) + "h");
+
+        BigInteger totalSubmittedMips = BigInteger.valueOf(simSpec.CLOUDLETS)
+                .multiply(BigInteger.valueOf(simSpec.CLOUDLET_TOTAL_WORK));
+        LOGGER.info("Total Work Submitted " + totalSubmittedMips + " MIPS");
+        LOGGER.info("Total Work Completed (per core) " + totalAccumulatedMips + " MIPS");
+        LOGGER.info("Total Work Completed " + (totalAccumulatedMips.multiply(BigInteger.valueOf(simSpec.HOSTS).multiply(BigInteger.valueOf(simSpec.HOST_PES)))) + " MIPS");
 
         final var cloudletFinishedList = broker.getCloudletFinishedList();
         new CloudletsTableBuilder(cloudletFinishedList).build();
@@ -227,6 +234,8 @@ public class Main {
         return vmList;
     }
 
+    public BigInteger totalAccumulatedMips = BigInteger.valueOf(0);
+
     // creates a list of Cloudlets (cloud applications)
     private List<Cloudlet> createCloudlets() {
         LOGGER.info("Creating " + simSpec.CLOUDLETS + " Cloudlets");
@@ -257,6 +266,8 @@ public class Main {
                 LOGGER.info("WAITING? " + event.getVm().getCloudletScheduler().getCloudletWaitingList().size());
                 LOGGER.info("EXEC? " + event.getVm().getCloudletScheduler().getCloudletExecList().size());
                 LOGGER.info("FINISHED? " + event.getVm().getCloudletScheduler().getCloudletFinishedList().size());
+
+                totalAccumulatedMips = totalAccumulatedMips.add(BigInteger.valueOf(event.getCloudlet().getFinishedLengthSoFar()));
 
                 // for the default time scheduler, this waiting list is always empty, once the VM PEs are shared across all Cloudlets running inside a VM.
                 // each Cloudlet has the opportunity to use the PEs for a given time-slice.
