@@ -2,6 +2,8 @@ package com.loganbe.templates;
 
 import org.cloudsimplus.schedulers.cloudlet.CloudletScheduler;
 import org.cloudsimplus.schedulers.cloudlet.CloudletSchedulerSpaceShared;
+import org.cloudsimplus.schedulers.cloudlet.CloudletSchedulerTimeShared;
+import org.cloudsimplus.schedulers.cloudlet.CustomCloudletScheduler;
 
 /**
  * an under utilised model, with sequential execution
@@ -32,7 +34,11 @@ public class SimSpecSequentialSmall {
     public static final int CLOUDLET_LENGTH = 1_000_000;   // Million Instructions (MI)
     public static final double CLOUDLET_UTILISATION = 1;   // % extent to which the job will utilise the CPU (other resources i.e. RAM are specified separately)
 
-    //public CloudletScheduler scheduler = new CloudletSchedulerTimeShared();   // DON'T USE, DOESN'T SUPPORT WAITING CLOUDLETS!
-    public CloudletScheduler scheduler = new CloudletSchedulerSpaceShared();    // will complete all work - nothing unfinished
+    //public static final int SIM_TOTAL_WORK = CLOUDLETS * CLOUDLET_LENGTH * CLOUDLET_PES;    // total amount of work (varies depending on how many cores you deploy cloudlets to!) - the same cloudlet can be deployed to multiple cores
+    public static final int SIM_TOTAL_WORK = CLOUDLETS * CLOUDLET_LENGTH * VM_PES;
+
+    //public CloudletScheduler scheduler = new CloudletSchedulerTimeShared();         // DON'T USE, DOESN'T SUPPORT WAITING CLOUDLETS!
+    public CloudletScheduler scheduler = new CustomCloudletScheduler();
+    //public CloudletScheduler scheduler = new CloudletSchedulerSpaceShared();      // will complete all work - nothing unfinished
 
 }

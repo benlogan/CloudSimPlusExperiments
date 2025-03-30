@@ -7,9 +7,10 @@ import org.cloudsimplus.allocationpolicies.VmAllocationPolicySimple;
 import org.cloudsimplus.brokers.DatacenterBroker;
 import org.cloudsimplus.brokers.DatacenterBrokerSimple;
 import org.cloudsimplus.builders.tables.CloudletsTableBuilder;
+import org.cloudsimplus.builders.tables.CloudletsTableBuilderExtended;
 import org.cloudsimplus.builders.tables.TableBuilderAbstract;
 import org.cloudsimplus.cloudlets.Cloudlet;
-import org.cloudsimplus.cloudlets.CloudletSimple;
+import org.cloudsimplus.cloudlets.CloudletSimpleFixed;
 import org.cloudsimplus.core.CloudSimPlus;
 import org.cloudsimplus.datacenters.Datacenter;
 import org.cloudsimplus.hosts.Host;
@@ -17,17 +18,15 @@ import org.cloudsimplus.hosts.HostSimpleFixed;
 import org.cloudsimplus.power.models.PowerModelHostSimple;
 import org.cloudsimplus.resources.Pe;
 import org.cloudsimplus.resources.PeSimple;
+import org.cloudsimplus.schedulers.cloudlet.CustomVm;
 import org.cloudsimplus.util.Log;
 import org.cloudsimplus.utilizationmodels.UtilizationModelDynamic;
 import org.cloudsimplus.vms.Vm;
-import org.cloudsimplus.vms.VmSimple;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.math.BigInteger;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
+import java.util.*;
 
 public class Main {
 
@@ -42,6 +41,7 @@ public class Main {
     private Datacenter datacenter;
 
     private SimSpecBigCompany simSpec = new SimSpecBigCompany();
+    //private SimSpecSequentialSmall simSpec = new SimSpecSequentialSmall();
 
     public static final Logger LOGGER = LoggerFactory.getLogger(Main.class.getSimpleName());
 
@@ -120,14 +120,26 @@ public class Main {
 
         LOGGER.info("Simulation End Time " + Math.round(simulation.clockInHours()) + "h");
 
-        BigInteger totalSubmittedMips = BigInteger.valueOf(simSpec.CLOUDLETS)
-                .multiply(BigInteger.valueOf(simSpec.CLOUDLET_TOTAL_WORK));
-        LOGGER.info("Total Work Submitted " + totalSubmittedMips + " MIPS");
-        LOGGER.info("Total Work Completed (per core) " + totalAccumulatedMips + " MIPS");
-        LOGGER.info("Total Work Completed " + (totalAccumulatedMips.multiply(BigInteger.valueOf(simSpec.HOSTS).multiply(BigInteger.valueOf(simSpec.HOST_PES)))) + " MIPS");
+        //BigInteger totalSubmittedMips = BigInteger.valueOf(simSpec.CLOUDLETS)
+        //        .multiply(BigInteger.valueOf(simSpec.CLOUDLET_TOTAL_WORK));
+        LOGGER.info("Total Work Expected " + simSpec.SIM_TOTAL_WORK + " MIPS");
+        LOGGER.info("Total Work Completed " + totalAccumulatedMips + " MIPS"); // per core?
+        //LOGGER.info("Total Work Completed " + (totalAccumulatedMips.multiply(BigInteger.valueOf(simSpec.HOSTS).multiply(BigInteger.valueOf(simSpec.HOST_PES)))) + " MIPS");
 
-        final var cloudletFinishedList = broker.getCloudletFinishedList();
-        new CloudletsTableBuilder(cloudletFinishedList).build();
+        BigInteger actualAccumulatedMips = new BigInteger(String.valueOf(0)); // TOTAL length, across ALL cores
+        for (Cloudlet cloudlet : broker.getCloudletFinishedList()) {
+            actualAccumulatedMips = actualAccumulatedMips.add(BigInteger.valueOf(cloudlet.getTotalLength()));
+        }
+        LOGGER.info("Actual Work Completed " + actualAccumulatedMips + " MIPS");
+        if(!BigInteger.valueOf(simSpec.SIM_TOTAL_WORK).equals(actualAccumulatedMips)) {
+            LOGGER.error("MIPS Before/After Not Equal - incomplete work?");
+            LOGGER.error("Unfinished MIPS = " + BigInteger.valueOf(simSpec.SIM_TOTAL_WORK).subtract(actualAccumulatedMips));
+        }
+
+        //final var cloudletFinishedList = broker.getCloudletFinishedList();
+        final var cloudletFinishedList = broker.getCloudletCreatedList();
+        //new CloudletsTableBuilder(cloudletFinishedList).build();
+        new CloudletsTableBuilderExtended(cloudletFinishedList).build();
         //new CloudletsTableBuilder(cloudletFinishedList, new HtmlTable()).build();
         //new CloudletsTableBuilder(cloudletFinishedList, new CsvTable()).build(); // replaced below
 
@@ -137,17 +149,131 @@ public class Main {
         tableBuilder.build();
         //Utilities.writeCsv(table.getCsvString(), "data/sim_data_" + new Date().getTime() + ".csv");
 
-        // FIXME WORKINGHERE
+        // new table showing activity in each core
+        //System.out.println(broker.getVmCreatedList().get(0).getHost().getPeList().get(0).getStatus().toString());
+
+        // after the simulation, print the cloudlet-to-vCPU mapping
+        // the basic idea is to manually maintain a mapping of cloudlets to cores (because CloudSimPlus doesn't really do that)
+        // then we can see exactly how work is being distributed
+        // useful because the usual table doesn't tell us what is going on in each core (so this complements the cloudlet view/table)
+
+        List<CustomVm> vmList = broker.getVmCreatedList();
+
+        //printCloudletExecutionStats(vmList);
+        printVcpuExecutionStats(vmList);
+
         // these tables are very confusing and fundamentally wrong!
-        // I think this is what has been causing so much confusion
         // the current version implies that cloudlet 0 runs exclusively at first, but only on host 0 and vm 0
         // then we start on cloudlet 1 on host 1, on vm 1
         // none of this is right. surely cloudlet 0 is actually being broken up and running on all cores simultaneously
-        // I think we need a host/vm/cores table that shows that view
         // and the cloudlet view probably needs fixing to show multiple entries per row where appropriate
+
+        // so for some specs it is accurate! (space shared?)
 
         new Power().printHostsCpuUtilizationAndPowerConsumption(hostList);
         //new Power().printVmsCpuUtilizationAndPowerConsumption(vmList);
+    }
+
+    // after simulation completes, print MIPS and percentages
+    public void printCloudletExecutionStats(List<CustomVm> vmList) {
+        for(CustomVm vm : vmList) {
+            Map<Integer, Map<Integer, Double>> vcpuMipsUsageMap = vm.getVcpuMipsUsageMapNew();
+
+            // for each vCPU
+            for (Map.Entry<Integer, Map<Integer, Double>> vcpuEntry : vcpuMipsUsageMap.entrySet()) {
+                int vcpuIndex = vcpuEntry.getKey();
+                Map<Integer, Double> cloudletMipsMap = vcpuEntry.getValue();
+
+                // For each cloudlet, calculate MIPS usage and percentage
+                for (Map.Entry<Integer, Double> cloudletEntry : cloudletMipsMap.entrySet()) {
+                    int cloudletId = cloudletEntry.getKey();
+                    double mipsUsed = cloudletEntry.getValue();
+                    //double totalCloudletMips = 0.0;
+
+                    // calculate total MIPS used by cloudlet (across all vCPUs)
+                    /*
+                    for (Map<Integer, Double> mipsUsage : vcpuMipsUsageMap.values()) {
+                        totalCloudletMips += mipsUsage.getOrDefault(cloudletId, 0.0);
+                    }
+                    */
+
+                    // calculate percentage of execution time on this vCPU for this cloudlet
+                    // will always simply be the percentage split across cores, regardless of completeness
+                    //double percentage = (mipsUsed / totalCloudletMips) * 100;
+
+                    double totalLength = 0;
+                    // more useful - calculate percentage completeness of overall cloud execution
+                    // double percentage = (mipsUsed / vm.getCloudletScheduler().getCloudletList().get(cloudletId).getTotalLength()) * 100;
+                    // FIXME total length not behaving - doesn't seem to actually use getPesNumber! or rather uses it for the cloudlet, not the VM
+                    // FIXME also must be a more efficient way of finding a cloudlet by ID (without this iteration and without going via the broker)
+                    for (Cloudlet c : broker.getCloudletCreatedList()) {
+                        if (c.getId() == cloudletId) {
+                            totalLength = c.getTotalLength();
+                        }
+                    }
+                    double percentage = (mipsUsed / totalLength) * 100;
+                    // FIXME round small numbers to zero, later
+
+                    System.out.println("Cloudlet " + cloudletId + " ran on VM " + vm.getId() + " on vCPU " + vcpuIndex + " for " + mipsUsed + " MIPS, which is " + percentage + "% of total execution.");
+                }
+            }
+        }
+    }
+
+    public void printVcpuExecutionStats(List<CustomVm> vmList) {
+        // display header
+        System.out.println("----------------------------------------------------------------------");
+        System.out.println(String.format("| %-10s | %-10s | %-11s | %-12s | %-11s |", "VM ID", "vCPU Index", "Cloudlet ID", "MIPS Used", "Execution %"));
+        System.out.println("----------------------------------------------------------------------");
+
+        for(CustomVm vm : vmList) {
+            Map<Integer, Map<Integer, Double>> vcpuMipsUsageMap = vm.getVcpuMipsUsageMapNew();
+
+            // check - if you are not using the new custom scheduler, this won't be populated!
+            if(vm.getVcpuMipsUsageMapNew().size() == 0) {
+                System.err.println("getVcpuMipsUsageMapNew IS EMPTY!");
+            }
+
+            // iterate through the vCPU and cloudlet MIPS usage map
+            for (Map.Entry<Integer, Map<Integer, Double>> vcpuEntry : vcpuMipsUsageMap.entrySet()) {
+                int vcpuIndex = vcpuEntry.getKey();
+                Map<Integer, Double> cloudletMipsMap = vcpuEntry.getValue();
+
+                // for each cloudlet on this vCPU
+                for (Map.Entry<Integer, Double> cloudletEntry : cloudletMipsMap.entrySet()) {
+                    int cloudletId = cloudletEntry.getKey();
+                    double mipsUsed = cloudletEntry.getValue();
+
+                    // calculate total MIPS used by the cloudlet (across all vCPUs)
+                    /*
+                    double totalCloudletMips = 0.0;
+                    for (Map<Integer, Double> mipsUsage : vcpuMipsUsageMap.values()) {
+                        totalCloudletMips += mipsUsage.getOrDefault(cloudletId, 0.0);
+                    }
+                    */
+
+                    // calculate percentage of execution time for this cloudlet on this vCPU
+                    //double percentage = (mipsUsed / totalCloudletMips) * 100;
+
+                    double totalLength = 0;
+
+                    // FIXME rather wastefully looking at all cloudlets when I shouldn't need to
+                    for (Cloudlet c : broker.getCloudletCreatedList()) {
+                        if (c.getId() == cloudletId) {
+                            //totalLength = vm.getPesNumber() * c1.getTotalLength();
+                            totalLength = c.getTotalLength();
+                        }
+                    }
+                    double percentage = (mipsUsed / totalLength) * 100;
+
+                    // print row for this cloudlet on this vCPU
+                    System.out.println(String.format("| %-10d | %-10d | %-11d | %-12.2f | %-11.2f |", vm.getId(), vcpuIndex, cloudletId, mipsUsed, percentage));
+                }
+            }
+        }
+
+        // end of table
+        System.out.println("----------------------------------------------------------------------");
     }
 
     public List<Host> hostList;
@@ -213,7 +339,8 @@ public class Main {
         LOGGER.info("createVms, creating " + simSpec.VMS + " VMs, across " + simSpec.HOSTS + " hosts");
         final var vmList = new ArrayList<Vm>(simSpec.VMS);
         for (int i = 0; i < simSpec.VMS; i++) {
-            final var vm = new VmSimple(simSpec.VM_MIPS, simSpec.VM_PES);
+            //final var vm = new VmSimple(simSpec.VM_MIPS, simSpec.VM_PES);
+            final var vm = new CustomVm(simSpec.VM_MIPS, simSpec.VM_PES);
 
             vm.setRam(simSpec.VM_RAM).setBw(simSpec.VM_BW).setSize(simSpec.VM_STORAGE);
 
@@ -244,6 +371,7 @@ public class Main {
         return vmList;
     }
 
+    // whenever a cloudlet completes, we will add to this number
     public BigInteger totalAccumulatedMips = BigInteger.valueOf(0);
 
     // creates a list of Cloudlets (cloud applications)
@@ -260,7 +388,8 @@ public class Main {
 
         for (int i = 0; i < simSpec.CLOUDLETS; i++) {
             // use 100% of CPU, i.e. one core each
-            final var cloudlet = new CloudletSimple(simSpec.CLOUDLET_LENGTH, simSpec.CLOUDLET_PES, utilizationModel);
+            // FIXME - am I making a mistake here, it's going to use all virtual cores - so this should be 4 and not 1?
+            final var cloudlet = new CloudletSimpleFixed(simSpec.CLOUDLET_LENGTH, simSpec.CLOUDLET_PES, utilizationModel);
 
             // one core each but only 25% of the available memory (and bandwidth), to enable parallel execution
             cloudlet.setUtilizationModelRam(utilizationModelMemory);
@@ -279,18 +408,19 @@ public class Main {
                 LOGGER.info("FINISHED? " + event.getVm().getCloudletScheduler().getCloudletFinishedList().size());
                 */
 
-                totalAccumulatedMips = totalAccumulatedMips.add(BigInteger.valueOf(event.getCloudlet().getFinishedLengthSoFar()));
+                //totalAccumulatedMips = totalAccumulatedMips.add(BigInteger.valueOf(event.getCloudlet().getFinishedLengthSoFar()));
+                totalAccumulatedMips = totalAccumulatedMips.add(BigInteger.valueOf(event.getCloudlet().getTotalLength())); // fixed, but doesn't necessarily mean this work is complete
 
                 // for the default time scheduler, this waiting list is always empty, once the VM PEs are shared across all Cloudlets running inside a VM.
                 // each Cloudlet has the opportunity to use the PEs for a given time-slice.
                 // So this scheduler doesn't suit scenarios where you are overloading the hardware!
             });
 
-            /*
+
             cloudlet.addOnStartListener(event -> {
                 LOGGER.trace("CLOUDLET START : " + event.getCloudlet().getId() + " time = " + event.getTime());
             });
-
+            /*
             cloudlet.addOnUpdateProcessingListener(info -> {
                 //LOGGER.trace("CLOUDLET UPDATE PROCESSING : " + info.getCloudlet().getId() + " time = " + info.getTime());
 

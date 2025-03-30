@@ -1,7 +1,6 @@
 package com.loganbe;
 
 import org.cloudsimplus.hosts.Host;
-import org.cloudsimplus.hosts.HostStateHistoryEntry;
 import org.cloudsimplus.power.models.PowerModel;
 import org.cloudsimplus.power.models.PowerModelHostSimple;
 import org.cloudsimplus.vms.HostResourceStats;
@@ -98,31 +97,32 @@ public class Power {
         final double utilizationPercentMean = cpuStats.getMean();
         final double watts = host.getPowerModel().getPower(utilizationPercentMean);
         System.out.printf(
-                "Host %2d CPU Usage mean: %6.1f%% | Power Consumption mean: %8.0f W%n",
+                "Host %2d CPU Usage mean: %6.1f%% | Power Consumption mean: %8.0fW%n",
                 host.getId(), utilizationPercentMean * 100, watts);
     }
 
     public static void printTotalPower(List<Host> hostList) {
         double totalPower = 0;
         double totalEnergy = 0;
+        double upTimeHours = 0;
         for (final Host host : hostList) {
             final HostResourceStats cpuStats = host.getCpuUtilizationStats();
             final double utilizationPercentMean = cpuStats.getMean();
             final double watts = host.getPowerModel().getPower(utilizationPercentMean);
             totalPower += watts;
 
-            double upTimeHours = host.getTotalUpTime() / 60 / 60;
+            upTimeHours = host.getTotalUpTime() / 60 / 60;
             double energy = watts * upTimeHours;
             totalEnergy += energy;
         }
         DecimalFormat df = new DecimalFormat("#");
 
-        System.out.println("Total Power = " + df.format(totalPower) + " W");
-        System.out.println();
+        System.out.println("Total Power = " + df.format(totalPower) + "W");
 
-        DecimalFormat df1 = new DecimalFormat("#.#");
-        System.out.println("Total Energy = " + df.format(totalEnergy) + " Wh (" + df1.format(totalEnergy/1000) + " KWh)");
-        System.out.println();
+        System.out.println("Energy Consumption = " + df.format(totalPower) + "Wh (i.e. per hour)");
+
+        DecimalFormat df1 = new DecimalFormat("#.##");
+        System.out.println("Total Energy = " + df.format(totalEnergy) + "Wh (" + df1.format(totalEnergy/1000) + " KWh) consumed in " + df1.format(upTimeHours) + "hr(s)");
     }
 
 }

@@ -3,6 +3,7 @@ package com.loganbe.templates;
 import org.cloudsimplus.schedulers.cloudlet.CloudletScheduler;
 import org.cloudsimplus.schedulers.cloudlet.CloudletSchedulerSpaceShared;
 import org.cloudsimplus.schedulers.cloudlet.CloudletSchedulerTimeShared;
+import org.cloudsimplus.schedulers.cloudlet.CustomCloudletScheduler;
 
 /**
  * a fully utilised model, with sequential execution
@@ -46,11 +47,15 @@ public class SimSpecBigCompany {
 
     public static final double CLOUDLET_UTILISATION = 1;            // % extent to which the job will utilise the CPU (other resources i.e. RAM are specified separately)
 
-    public static final int CLOUDLET_TOTAL_WORK = 57_600_000;                               // total amount of work, per cloudlet
-    public static final int CLOUDLET_LENGTH = CLOUDLET_TOTAL_WORK/(HOSTS * HOST_PES);       // divide total work by number of cores
+    public static final int CLOUDLET_LENGTH = 57_600_000/(HOSTS * HOST_PES);                // divide total work by number of cores
     // Million Instructions (MI) - I think this might be per core! so if you have a large job that you intend to split, bear that in mind!
     // this is one job that should take ~1hr (3600s) to execute, in parallel, across 16 cores
 
-    public CloudletScheduler scheduler = new CloudletSchedulerSpaceShared();    // will complete all work - nothing unfinished
+    //public static final int SIM_TOTAL_WORK = CLOUDLETS * CLOUDLET_LENGTH * CLOUDLET_PES;    // total amount of work (varies depending on how many cores you deploy cloudlets to!) - the same cloudlet can be deployed to multiple cores
+    // WORKINGHERE this will actually vary depending on what type of scheduler we use!! (it shouldn't) - if it's space scheduler, then it won't split the cloudlet across multiple cores
+    public static final int SIM_TOTAL_WORK = CLOUDLETS * CLOUDLET_LENGTH;    // total amount of work (varies depending on how many cores you deploy cloudlets to!) - the same cloudlet can be deployed to multiple cores
+
+    //public CloudletScheduler scheduler = new CloudletSchedulerSpaceShared();    // will complete all work - nothing unfinished
+    public CloudletScheduler scheduler = new CustomCloudletScheduler();         // using a custom scheduler (that in turn uses default time scheduler) in order to track vcpu usage
 
 }
