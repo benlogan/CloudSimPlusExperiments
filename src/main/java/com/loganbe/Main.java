@@ -3,6 +3,7 @@ package com.loganbe;
 import com.loganbe.templates.SimSpecBigCompany;
 import com.loganbe.templates.SimSpecSequentialSmall;
 import org.cloudsimplus.allocationpolicies.VmAllocationPolicy;
+import org.cloudsimplus.allocationpolicies.VmAllocationPolicyRoundRobin;
 import org.cloudsimplus.allocationpolicies.VmAllocationPolicySimple;
 import org.cloudsimplus.brokers.DatacenterBroker;
 import org.cloudsimplus.brokers.DatacenterBrokerSimple;
@@ -136,6 +137,13 @@ public class Main {
             LOGGER.error("Unfinished MIPS = " + BigInteger.valueOf(simSpec.SIM_TOTAL_WORK).subtract(actualAccumulatedMips));
         }
 
+        double expectedCompletionTimeS = (simSpec.SIM_TOTAL_WORK / (simSpec.HOST_PES * simSpec.HOST_MIPS));
+        LOGGER.info("Expected Completion Time " + (expectedCompletionTimeS / 60 / 60) + "hr(s)");
+        LOGGER.info("Actual Completion Time " + Math.round(simulation.clockInHours()) + "hr(s)");
+        if(simulation.clock() != expectedCompletionTimeS) {
+            LOGGER.error("Gap in expected completion time (assuming full utilisation) = " + (simulation.clock() - expectedCompletionTimeS) + "s");
+        }
+
         //final var cloudletFinishedList = broker.getCloudletFinishedList();
         final var cloudletFinishedList = broker.getCloudletCreatedList();
         //new CloudletsTableBuilder(cloudletFinishedList).build();
@@ -167,11 +175,13 @@ public class Main {
         // then we start on cloudlet 1 on host 1, on vm 1
         // none of this is right. surely cloudlet 0 is actually being broken up and running on all cores simultaneously
         // and the cloudlet view probably needs fixing to show multiple entries per row where appropriate
+        // ACTUALLY SEEMS LIKE SPACE SCHEDULER IS ONLY USING 1 PHYSICAL AT A TIME, NOT SURE WHY! WORKINGHERE
+        // and obviously utilisation stats should reflect that (they don't)
 
-        // so for some specs it is accurate! (space shared?)
+        // so for some specs it is accurate! (space shared? no!)
 
         new Power().printHostsCpuUtilizationAndPowerConsumption(hostList);
-        //new Power().printVmsCpuUtilizationAndPowerConsumption(vmList);
+        new Power().printVmsCpuUtilizationAndPowerConsumption(vmList);
     }
 
     // after simulation completes, print MIPS and percentages
@@ -291,6 +301,7 @@ public class Main {
 
         VmAllocationPolicy vmAllocationPolicy = new VmAllocationPolicySimple();
         dc.setVmAllocationPolicy(vmAllocationPolicy); // default, but just in case!
+        //dc.setVmAllocationPolicy(new VmAllocationPolicyRoundRobin()); // should enforce parallel execution, but doesn't
 
         dc.setSchedulingInterval(SCHEDULING_INTERVAL);
         //DatacenterSimple powerDatacenter = new DatacenterSimple(simulation, hostList, new VmAllocationPolicySimple(), 1.0); // example power code
@@ -349,6 +360,9 @@ public class Main {
             vm.setCloudletScheduler(simSpec.scheduler); // note - this is important, the choice can determine if queuing is supported!
             // if I leave it off (default) - time scheduler, then no queueing and jobs execute as fast as they theoretically can
 
+            // WORKINGHERE - unclear why space scheduler appears to be blocking across hosts (preventing parallel execution)
+            // remember the host also appears fully allocated all the time (which is wrong, or unexpected, but might at least explain why cloudlets arent being ran in parllel)
+
             //LOGGER.info("getCloudletScheduler : " + vm.getCloudletScheduler());
 
             // required for granular data collection (power)
@@ -399,7 +413,7 @@ public class Main {
             // shouldn't be necessary if you use a scheduler that supports queuing/waiting
 
             cloudlet.addOnFinishListener(event -> {
-                //LOGGER.info("CLOUDLET END (time) " + event.getTime());
+                LOGGER.info("CLOUDLET END (time) " + event.getTime());
 
                 //there might be a simpler way to do this! if they are already paused, there is resume functionality!
                 /*
@@ -425,7 +439,7 @@ public class Main {
                 //LOGGER.trace("CLOUDLET UPDATE PROCESSING : " + info.getCloudlet().getId() + " time = " + info.getTime());
 
                 Vm vm0 = cloudletList.get(0).getVm();
-                Vm vm1 = cloudletList.get(1).getVm();
+                //Vm vm1 = cloudletList.get(1).getVm();
 
                 //System.out.println("getCpuPercentRequested : " + vm0.getCpuPercentRequested());
                 System.out.println("getCpuPercentUtilization , " + vm0.getCpuPercentUtilization());

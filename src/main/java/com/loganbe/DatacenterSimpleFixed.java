@@ -39,7 +39,7 @@ public class DatacenterSimpleFixed extends DatacenterSimple {
          * will be scheduled as usual. Otherwise, the update
          * is scheduled to the next time multiple of the scheduling interval.*/
 
-        // major bug with this approach, preventing succesful completion of cloudlets
+        // major bug with this approach, preventing successful completion of cloudlets
         //final double delay = mod == 0 ? getSchedulingInterval() : (time - mod + getSchedulingInterval()) - time;
 
         double delaySubComponent = (time - mod + getSchedulingInterval()) - time;

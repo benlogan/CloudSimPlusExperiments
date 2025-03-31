@@ -3,7 +3,8 @@ package org.cloudsimplus.schedulers.cloudlet;
 import org.cloudsimplus.cloudlets.CloudletExecution;
 import org.cloudsimplus.vms.Vm;
 
-public class CustomCloudletScheduler extends CloudletSchedulerSpaceShared {//extends CloudletSchedulerTimeShared {
+public class CustomCloudletScheduler extends CloudletSchedulerSpaceShared {
+//public class CustomCloudletScheduler extends CloudletSchedulerTimeShared {
 
     /*
     @Override

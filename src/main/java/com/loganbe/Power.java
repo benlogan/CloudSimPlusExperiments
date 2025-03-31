@@ -3,6 +3,7 @@ package com.loganbe;
 import org.cloudsimplus.hosts.Host;
 import org.cloudsimplus.power.models.PowerModel;
 import org.cloudsimplus.power.models.PowerModelHostSimple;
+import org.cloudsimplus.schedulers.cloudlet.CustomVm;
 import org.cloudsimplus.vms.HostResourceStats;
 import org.cloudsimplus.vms.Vm;
 import org.cloudsimplus.vms.VmResourceStats;
@@ -58,7 +59,9 @@ public class Power {
      * is computed here, that detail is abstracted.
      * </p>
      */
-    public static void printVmsCpuUtilizationAndPowerConsumption(List<Vm> vmList) {
+    public static void printVmsCpuUtilizationAndPowerConsumption(List<CustomVm> vmList) {
+        //System.out.println();
+        System.out.println("\nVMs - CPU Utilisation Stats");
         vmList.sort(comparingLong(vm -> vm.getHost().getId()));
         for (Vm vm : vmList) {
             final var powerModel = vm.getHost().getPowerModel();
@@ -73,6 +76,7 @@ public class Power {
                     "Vm   %2d CPU Usage Mean: %6.1f%% | Power Consumption Mean: %8.0f W%n",
                     vm.getId(), cpuStats.getMean() *100, vmPower);
         }
+        System.out.println();
     }
 
     /**
@@ -81,7 +85,7 @@ public class Power {
      * {@code vm.getUtilizationHistory().enable()}.
      */
     public static void printHostsCpuUtilizationAndPowerConsumption(List<Host> hostList) {
-        System.out.println();
+        System.out.println("\nPhysical Host - CPU Utilisation Stats");
         for (Host host : hostList) {
             printHostCpuUtilizationAndPowerConsumption(host);
         }
@@ -93,7 +97,8 @@ public class Power {
         HostResourceStats cpuStats = host.getCpuUtilizationStats();
 
         // the total Host's CPU utilization for the time specified by the map key - what does that mean!?
-        // FIXME this doesn't appear to be fetching the correct mean! or at least not at the end of the simulation run!
+        // FIXME WORKINGHERE this doesn't appear to be fetching the correct mean! or at least not at the end of the simulation run!
+        // showing physical host to be 100% utilised when space sharing - definitely not the case
         final double utilizationPercentMean = cpuStats.getMean();
         final double watts = host.getPowerModel().getPower(utilizationPercentMean);
         System.out.printf(
