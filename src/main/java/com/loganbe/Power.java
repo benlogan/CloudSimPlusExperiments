@@ -3,6 +3,8 @@ package com.loganbe;
 import org.cloudsimplus.hosts.Host;
 import org.cloudsimplus.power.models.PowerModel;
 import org.cloudsimplus.power.models.PowerModelHostSimple;
+import org.cloudsimplus.schedulers.cloudlet.CloudletScheduler;
+import org.cloudsimplus.schedulers.cloudlet.CustomCloudletScheduler;
 import org.cloudsimplus.schedulers.cloudlet.CustomVm;
 import org.cloudsimplus.vms.HostResourceStats;
 import org.cloudsimplus.vms.Vm;
@@ -16,7 +18,8 @@ import static java.util.Comparator.comparingLong;
 public class Power {
 
     // defines the power a Host uses, even if it's idle (in Watts)
-    public static final double STATIC_POWER = 100;
+    public static final double STATIC_POWER = 520;
+    // Idle power ~60–70% of max is typical for servers (we'll use 65% of 800W = 520W)
 
     // max power a Host uses (in Watts)
     public static final int MAX_POWER = 800;
@@ -84,40 +87,48 @@ public class Power {
      * if VMs utilization history is enabled by calling
      * {@code vm.getUtilizationHistory().enable()}.
      */
-    public static void printHostsCpuUtilizationAndPowerConsumption(List<Host> hostList) {
+    public static void printHostsCpuUtilizationAndPowerConsumption(CustomCloudletScheduler scheduler, List<Host> hostList) {
         System.out.println("\nPhysical Host - CPU Utilisation Stats");
         for (Host host : hostList) {
-            printHostCpuUtilizationAndPowerConsumption(host);
+            printHostCpuUtilizationAndPowerConsumption(scheduler, host);
         }
         System.out.println();
-        printTotalPower(hostList);
+        printTotalPower(scheduler, hostList);
     }
 
-    public static void printHostCpuUtilizationAndPowerConsumption(Host host) {
-        HostResourceStats cpuStats = host.getCpuUtilizationStats();
+    /**
+     * WARNING this is showing physical host to be 100% utilised when space sharing
+     * this is definitely not the case - this is not a reliable measure of utilisation
+     * this is not suitable for use in energy calculations
+     * has been corrected to not use the framework utilisation stats
+     *
+     * @param host
+     */
+    public static void printHostCpuUtilizationAndPowerConsumption(CustomCloudletScheduler scheduler, Host host) {
+        //HostResourceStats cpuStats = host.getCpuUtilizationStats();
+        //final double utilizationPercentMean = cpuStats.getMean();
 
-        // the total Host's CPU utilization for the time specified by the map key - what does that mean!?
-        // FIXME WORKINGHERE this doesn't appear to be fetching the correct mean! or at least not at the end of the simulation run!
-        // showing physical host to be 100% utilised when space sharing - definitely not the case
-        final double utilizationPercentMean = cpuStats.getMean();
-        final double watts = host.getPowerModel().getPower(utilizationPercentMean);
+        PowerServer ps = wattsPerServer(scheduler, host);
         System.out.printf(
                 "Host %2d CPU Usage mean: %6.1f%% | Power Consumption mean: %8.0fW%n",
-                host.getId(), utilizationPercentMean * 100, watts);
+                host.getId(), ps.getUtilizationPercentMean() * 100, ps.getWatts());
     }
 
-    public static void printTotalPower(List<Host> hostList) {
+    public static void printTotalPower(CustomCloudletScheduler scheduler, List<Host> hostList) {
         double totalPower = 0;
         double totalEnergy = 0;
         double upTimeHours = 0;
         for (final Host host : hostList) {
-            final HostResourceStats cpuStats = host.getCpuUtilizationStats();
-            final double utilizationPercentMean = cpuStats.getMean();
-            final double watts = host.getPowerModel().getPower(utilizationPercentMean);
-            totalPower += watts;
+            //final HostResourceStats cpuStats = host.getCpuUtilizationStats();
+            //final double utilizationPercentMean = cpuStats.getMean();
+            //final double watts = host.getPowerModel().getPower(utilizationPercentMean);
+
+            PowerServer ps = wattsPerServer(scheduler, host);
+
+            totalPower += ps.getWatts();
 
             upTimeHours = host.getTotalUpTime() / 60 / 60;
-            double energy = watts * upTimeHours;
+            double energy = ps.getWatts() * upTimeHours;
             totalEnergy += energy;
         }
         DecimalFormat df = new DecimalFormat("#");
@@ -128,6 +139,15 @@ public class Power {
 
         DecimalFormat df1 = new DecimalFormat("#.##");
         System.out.println("Total Energy = " + df.format(totalEnergy) + "Wh (" + df1.format(totalEnergy/1000) + " KWh) consumed in " + df1.format(upTimeHours) + "hr(s)");
+        System.out.println();
+    }
+
+    public static PowerServer wattsPerServer(CustomCloudletScheduler scheduler, Host host) {
+        double elapsedTime = scheduler.getHostElapsedTime(host.getId());
+        double endTime = host.getDatacenter().getSimulation().clock();
+        final double utilizationPercentMean = elapsedTime / endTime;
+        final double watts = host.getPowerModel().getPower(utilizationPercentMean);
+        return new PowerServer(utilizationPercentMean, watts);
     }
 
 }

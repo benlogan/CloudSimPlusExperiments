@@ -187,13 +187,11 @@ public class Main {
         // then we start on cloudlet 1 on host 1, on vm 1
         // none of this is right. surely cloudlet 0 is actually being broken up and running on all cores simultaneously
         // and the cloudlet view probably needs fixing to show multiple entries per row where appropriate
-        // ACTUALLY SEEMS LIKE SPACE SCHEDULER IS ONLY USING 1 PHYSICAL AT A TIME, NOT SURE WHY! WORKINGHERE
-        // and obviously utilisation stats should reflect that (they don't)
+        // ACTUALLY SEEMS LIKE SPACE SCHEDULER IS ONLY USING 1 PHYSICAL AT A TIME - scheduler bug FIXME
+        // obviously utilisation stats should reflect that (they don't - hence the need for custom utilisation measure)
 
-        // so for some specs it is accurate! (space shared? no!)
-
-        new Power().printHostsCpuUtilizationAndPowerConsumption(hostList);
-        new Power().printVmsCpuUtilizationAndPowerConsumption(vmList);
+        new Power().printHostsCpuUtilizationAndPowerConsumption((CustomCloudletScheduler) simSpec.scheduler, hostList);
+        //new Power().printVmsCpuUtilizationAndPowerConsumption(vmList);
 
         // print out the new custom utilisation data (accurate!)
         CustomCloudletScheduler scheduler = (CustomCloudletScheduler) simSpec.scheduler;
