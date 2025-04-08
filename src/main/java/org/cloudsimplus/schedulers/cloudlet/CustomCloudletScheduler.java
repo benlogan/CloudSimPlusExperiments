@@ -3,6 +3,9 @@ package org.cloudsimplus.schedulers.cloudlet;
 import org.cloudsimplus.cloudlets.CloudletExecution;
 import org.cloudsimplus.vms.Vm;
 
+import java.util.HashMap;
+import java.util.Map;
+
 public class CustomCloudletScheduler extends CloudletSchedulerSpaceShared {
 //public class CustomCloudletScheduler extends CloudletSchedulerTimeShared {
 
@@ -57,6 +60,8 @@ public class CustomCloudletScheduler extends CloudletSchedulerSpaceShared {
         return super.updateCloudletProcessing(cle, currentTime);
     }*/
 
+    double lastUpdateTime = 0;
+
     @Override
     public double updateCloudletProcessing(final CloudletExecution cle, final double currentTime) {
         Vm vm = cle.getCloudlet().getVm();
@@ -86,7 +91,29 @@ public class CustomCloudletScheduler extends CloudletSchedulerSpaceShared {
             }
         }
 
+        //System.out.println("getCloudletExecList : " + getCloudletExecList().size());
+        //System.out.println("getCloudletWaitingList : " + getCloudletWaitingList().size());
+        // this shows that cloudlets are waiting when we wouldn't expect them to be
+        // all hosts are doing the same thing - they all have one in execution at the same time (the same cloudlet!)
+
+        // custom utilisation code - this is calculating actual utilisation!
+        // the framework otherwise considers allocation alone to represent utilisation - not accurate!
+        // this is closer to actual utilisation and so is more useful for energy calculations
+
+        //System.err.println("PROCESSING ON ONE HOST AT A TIME : " + cle.getCloudlet().getVm().getHost() + " current time : " + currentTime);
+        // IMPORTANT - this shows that we are only processing on one host at a time...
+        // so we can use this logic to measure utilisation accurately;
+        long hostId = cle.getCloudlet().getVm().getHost().getId();
+        double timeDelta = currentTime - lastUpdateTime;
+        hostElapsedTime.put(hostId, hostElapsedTime.getOrDefault(hostId, 0.0) + timeDelta);
+        lastUpdateTime = currentTime;
+
         return super.updateCloudletProcessing(cle, currentTime);
     }
 
+    private Map<Long, Double> hostElapsedTime = new HashMap<>();
+
+    public double getHostElapsedTime(long hostId) {
+        return hostElapsedTime.getOrDefault(hostId, 0.0);
+    }
 }

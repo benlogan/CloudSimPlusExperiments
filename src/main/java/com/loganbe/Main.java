@@ -11,6 +11,7 @@ import org.cloudsimplus.builders.tables.CloudletsTableBuilder;
 import org.cloudsimplus.builders.tables.CloudletsTableBuilderExtended;
 import org.cloudsimplus.builders.tables.TableBuilderAbstract;
 import org.cloudsimplus.cloudlets.Cloudlet;
+import org.cloudsimplus.cloudlets.CloudletExecution;
 import org.cloudsimplus.cloudlets.CloudletSimpleFixed;
 import org.cloudsimplus.core.CloudSimPlus;
 import org.cloudsimplus.datacenters.Datacenter;
@@ -19,6 +20,7 @@ import org.cloudsimplus.hosts.HostSimpleFixed;
 import org.cloudsimplus.power.models.PowerModelHostSimple;
 import org.cloudsimplus.resources.Pe;
 import org.cloudsimplus.resources.PeSimple;
+import org.cloudsimplus.schedulers.cloudlet.CustomCloudletScheduler;
 import org.cloudsimplus.schedulers.cloudlet.CustomVm;
 import org.cloudsimplus.util.Log;
 import org.cloudsimplus.utilizationmodels.UtilizationModelDynamic;
@@ -53,7 +55,7 @@ public class Main {
     private Main() {
         /*Enables just some level of log messages.
           Make sure to import org.cloudsimplus.util.Log;*/
-        Log.setLevel(ch.qos.logback.classic.Level.INFO); // THERE IS NO DEBUG LOGGING (AND ONLY MINIMAL TRACE)!
+        Log.setLevel(ch.qos.logback.classic.Level.TRACE); // THERE IS NO DEBUG LOGGING (AND ONLY MINIMAL TRACE)!
 
         simulation = new CloudSimPlus(0.01); // trying to ensure all events are processed, without any misses
 
@@ -108,6 +110,16 @@ public class Main {
             }
             LOGGER.trace("CLOCK TICK (END)");
             LOGGER.trace("-------------------------------------------------------");
+        });*/
+
+        /*
+        simulation.addOnClockTickListener(evt -> {
+            for (Host host : datacenter.getHostList()) {
+                double utilization = host.getCpuPercentUtilization();
+                // this just confirms that all hosts are all utilised when they aren't (i.e. they are allocated!)
+                System.out.printf("Time %.2f: Host %d CPU Utilization: %.2f%%\n",
+                        simulation.clock(), host.getId(), utilization * 100);
+            }
         });*/
 
         //simulation.terminateAt(10000); // won't make any difference if you have unfinished cloudlets! (because the events have probably already been processed)
@@ -182,6 +194,15 @@ public class Main {
 
         new Power().printHostsCpuUtilizationAndPowerConsumption(hostList);
         new Power().printVmsCpuUtilizationAndPowerConsumption(vmList);
+
+        // print out the new custom utilisation data (accurate!)
+        CustomCloudletScheduler scheduler = (CustomCloudletScheduler) simSpec.scheduler;
+        for(Host host : datacenter.getHostList()) {
+            double elapsedTime = scheduler.getHostElapsedTime(host.getId());
+            double endTime = simulation.clock();
+            double utilisation = elapsedTime / endTime * 100.0;
+            LOGGER.info("getHostElapsedTime (Host " + host.getId() + ")" + " elapsed time(s) = " + Math.round(scheduler.getHostElapsedTime(host.getId())) + " utilisation = " + Math.round(utilisation) + "%");
+        }
     }
 
     // after simulation completes, print MIPS and percentages
@@ -412,8 +433,21 @@ public class Main {
             // if a cloudlet finishes, assume it might have created capacity in the system for more processing!
             // shouldn't be necessary if you use a scheduler that supports queuing/waiting
 
+            /*
+            cloudlet.addOnStartListener(event -> {
+                LOGGER.trace("CLOUDLET START : " + event.getCloudlet().getId() + " time = " + event.getTime());
+                for(Host host : hostList) {
+                    LOGGER.trace("CPU UTILISATION (START). HOST : " + host.getId() + " UTILISATION : " + host.getCpuPercentUtilization());
+                }
+            });*/
+
             cloudlet.addOnFinishListener(event -> {
-                LOGGER.info("CLOUDLET END (time) " + event.getTime());
+                /*
+                LOGGER.trace("CLOUDLET END : " + event.getCloudlet().getId() + " time = " + event.getTime());
+                for(Host host : hostList) {
+                    LOGGER.trace("CPU UTILISATION (END). HOST : " + host.getId() + " UTILISATION : " + host.getCpuPercentUtilization());
+                }
+                 */
 
                 //there might be a simpler way to do this! if they are already paused, there is resume functionality!
                 /*
@@ -430,14 +464,11 @@ public class Main {
                 // So this scheduler doesn't suit scenarios where you are overloading the hardware!
             });
 
-
-            cloudlet.addOnStartListener(event -> {
-                LOGGER.trace("CLOUDLET START : " + event.getCloudlet().getId() + " time = " + event.getTime());
-            });
-            /*
+            ///*
             cloudlet.addOnUpdateProcessingListener(info -> {
                 //LOGGER.trace("CLOUDLET UPDATE PROCESSING : " + info.getCloudlet().getId() + " time = " + info.getTime());
 
+                /*
                 Vm vm0 = cloudletList.get(0).getVm();
                 //Vm vm1 = cloudletList.get(1).getVm();
 
@@ -447,8 +478,35 @@ public class Main {
                 System.out.println("getHostCpuUtilization , " + vm0.getHostCpuUtilization());
                 // above is how much of this host THIS VM IS using (relative)! NOT the actual host utilisation...
                 System.out.println("getCpuPercentUtilization (host) , " + vm0.getHost().getCpuPercentUtilization());
+                */
+
+                /*
+                for(Host host : hostList) {
+                    LOGGER.trace("CPU UTILISATION (DURING). HOST : " + host.getId() + " UTILISATION : " + host.getCpuPercentUtilization());
+
+                    LOGGER.trace("getTotalMipsCapacity : " + host.getTotalMipsCapacity()); // 16000 - agreed? yes, 16 cores x 1000 (both host and VM capacity)
+                    LOGGER.trace("getCpuMipsUtilization : " + host.getCpuMipsUtilization());
+
+                    // an unused host should have loads of MIPS capacity (but it has been allocated, even though it's not in active use)
+
+                    // since CloudSim assigns a Cloudlet to a VM immediately, it marks the CPU as fully utilized, even if the Cloudlet is waiting
+                    // so, this is by design. this is not appropriate for accurate power simulations!
+                    // hence the need for calculating our own custom utilisation metric...
+                }*/
+
+                // WORKING HERE - IS THIS THE SCHEDULING PROBLEM?
+                for (Host host : datacenter.getHostList()) {
+                    //CustomCloudletScheduler scheduler = (CustomCloudletScheduler) host.getVmScheduler();
+                    // this is a VmSchedulerSpaceShared - could this be where the problem is re scheduling of the VMs?
+                    CustomCloudletScheduler scheduler = (CustomCloudletScheduler) host.getVmList().get(0).getCloudletScheduler();
+                    //System.err.println("HOST : " + host.getId() + " getCloudletExecList " + scheduler.getCloudletExecList().size());
+                    //System.err.println("HOST : " + host.getId() + " getCloudletWaitingList " + scheduler.getCloudletWaitingList().size());
+
+                    // so each host has one in execution, the same one
+                    // and each host has 239 in waiting. so the system fully thinks it is parallel processing when its not!
+                }
             });
-            */
+            //*/
 
             cloudletList.add(cloudlet);
         }
