@@ -19,7 +19,6 @@ import org.cloudsimplus.resources.Pe;
 import org.cloudsimplus.resources.PeSimple;
 import org.cloudsimplus.schedulers.cloudlet.CustomCloudletScheduler;
 import org.cloudsimplus.schedulers.cloudlet.CustomVm;
-import org.cloudsimplus.schedulers.vm.VmScheduler;
 import org.cloudsimplus.util.Log;
 import org.cloudsimplus.utilizationmodels.UtilizationModelDynamic;
 import org.cloudsimplus.vms.Vm;
@@ -186,6 +185,7 @@ public class Main {
         // and the cloudlet view probably needs fixing to show multiple entries per row where appropriate
 
         new Power().printHostsCpuUtilizationAndPowerConsumption(hostList);
+        printCustomUtilisation(vmList, hostList);
         //new Power().printVmsCpuUtilizationAndPowerConsumption(vmList);
 
         // print out the new custom utilisation data (accurate!)
@@ -198,6 +198,32 @@ public class Main {
             double utilisation = elapsedTime / endTime * 100.0;
             LOGGER.info("getHostElapsedTime (Host " + host.getId() + ")" + " elapsed time(s) = " + Math.round(scheduler.getHostElapsedTime(host.getId())) + " utilisation = " + Math.round(utilisation) + "%");
         }*/
+    }
+
+    /**
+     * needs refactoring, but this demonstrates the custom utilisation method still works - the data structures are just messy
+     * i.e. this requires summing up the utilisation across all hosts, for each VM - could be more efficient (FIXME)
+     *
+     * @param vmList
+     * @param hostList
+     */
+    public void printCustomUtilisation(List<CustomVm> vmList, List<Host> hostList) {
+        Map<Long, Double> hostElapsedTime = new HashMap<>();
+        for (CustomVm vm : vmList) {
+            CustomCloudletScheduler cloudletScheduler = (CustomCloudletScheduler) vm.getCloudletScheduler();
+
+            for (Host host : hostList) {
+                double elapsedTime = cloudletScheduler.getHostElapsedTime(host.getId());
+                hostElapsedTime.put(host.getId(), hostElapsedTime.getOrDefault(host.getId(), 0.0) + elapsedTime);
+            }
+        }
+
+        for (Host host : hostList) {
+            double elapsedTime = hostElapsedTime.get(host.getId());
+            double endTime = host.getDatacenter().getSimulation().clock();
+            final double utilizationPercentMean = elapsedTime / endTime;
+            System.out.println("Custom Utilisation - host ID : " + host.getId() + " elapsedTime : " + elapsedTime + " utilisation : " + utilizationPercentMean);
+        }
     }
 
     // after simulation completes, print MIPS and percentages

@@ -105,6 +105,8 @@ public class Power {
      * this is definitely not the case - this is not a reliable measure of utilisation
      * this is not suitable for use in energy calculations
      * has been corrected to not use the framework utilisation stats
+     * it's not quite that bad - it can be used, but it is based more on allocation
+     * (which can, in some situations, differ from actual usage)
      *
      * @param host
      */
