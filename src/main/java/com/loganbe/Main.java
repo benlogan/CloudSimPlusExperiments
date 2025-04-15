@@ -36,8 +36,8 @@ public class Main {
     // a scheduling interval is required to gather CPU utilisation statistics
     private static final double SCHEDULING_INTERVAL = 0.1; // defaults to 0! i.e. continuous processing
 
-    private final CloudSimPlus simulation;
-    private final DatacenterBroker broker;
+    private CloudSimPlus simulation;
+    private DatacenterBroker broker;
     private List<Vm> vmList;
     private List<Cloudlet> cloudletList;
     private Datacenter datacenter;
@@ -47,10 +47,16 @@ public class Main {
     public static final Logger LOGGER = LoggerFactory.getLogger(Main.class.getSimpleName());
 
     public static void main(String[] args) {
-        new Main();
+        Main main = new Main();
+        main.runSimulation(null);
+
+        // multiple sim runs...
+
+        InterventionSuite interventions = new InterventionSuite(main);
+        main.runSimulation(interventions);
     }
 
-    private Main() {
+    private void runSimulation(InterventionSuite interventions) {
         /*Enables just some level of log messages.
           Make sure to import org.cloudsimplus.util.Log;*/
         Log.setLevel(ch.qos.logback.classic.Level.INFO); // THERE IS NO DEBUG LOGGING (AND ONLY MINIMAL TRACE)!
@@ -123,8 +129,9 @@ public class Main {
         //simulation.terminateAt(10000); // won't make any difference if you have unfinished cloudlets! (because the events have probably already been processed)
 
         // immediately before we start the sim, apply any interventions;
-        new InterventionSuite(this);
-
+        if(interventions != null) {
+            interventions.applyInterventions();
+        }
         simulation.start();
 
         int incomplete = broker.getCloudletSubmittedList().size() - broker.getCloudletFinishedList().size();
