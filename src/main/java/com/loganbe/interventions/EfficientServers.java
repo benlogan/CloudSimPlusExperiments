@@ -5,6 +5,10 @@ import com.loganbe.power.Power;
 import org.cloudsimplus.hosts.Host;
 import org.cloudsimplus.power.models.PowerModelHostSimple;
 
+/**
+ * half the servers, use half their normal power. should reduce overall energy consumption by 25%
+ * (not including DC overhead etc)
+ */
 public class EfficientServers {
 
     private final double sampleSize = 0.5; // only change half of the servers...

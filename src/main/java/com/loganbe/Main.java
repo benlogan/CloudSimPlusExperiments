@@ -44,6 +44,9 @@ public class Main {
 
     private SimSpecBigCompany simSpec = new SimSpecBigCompany();
 
+    private int simCount = 1;
+    private Map<Integer, Double> energyMap = new HashMap();
+
     public static final Logger LOGGER = LoggerFactory.getLogger(Main.class.getSimpleName());
 
     public static void main(String[] args) {
@@ -54,6 +57,18 @@ public class Main {
 
         InterventionSuite interventions = new InterventionSuite(main);
         main.runSimulation(interventions);
+
+        main.printEnergy();
+    }
+
+    private void printEnergy() {
+        for(int i = 1; i < simCount; i++) {
+            System.out.println("Sim Run : " + i + " energy : " + energyMap.get(i) + "Wh");
+        }
+        double energySaving = energyMap.get(1) - energyMap.get(2);
+
+        System.out.printf("Net Energy Saving, when applying interventions during a 2nd sim run : %.2f Wh (or %.2f %% less energy consumed)",
+                energySaving, (energySaving / energyMap.get(1))*100);
     }
 
     private void runSimulation(InterventionSuite interventions) {
@@ -197,7 +212,8 @@ public class Main {
         // none of this is right. surely cloudlet 0 is actually being broken up and running on all cores simultaneously
         // and the cloudlet view probably needs fixing to show multiple entries per row where appropriate
 
-        new Power().printHostsCpuUtilizationAndPowerConsumption(hostList);
+        double totalEnergy = new Power().calculateHostsCpuUtilizationAndEnergyConsumption(hostList);
+        energyMap.put(simCount, totalEnergy);
         //printCustomUtilisation(vmList, hostList);
         //new Power().printVmsCpuUtilizationAndPowerConsumption(vmList);
 
@@ -211,6 +227,7 @@ public class Main {
             double utilisation = elapsedTime / endTime * 100.0;
             LOGGER.info("getHostElapsedTime (Host " + host.getId() + ")" + " elapsed time(s) = " + Math.round(scheduler.getHostElapsedTime(host.getId())) + " utilisation = " + Math.round(utilisation) + "%");
         }*/
+        simCount++;
     }
 
     /**

@@ -86,7 +86,7 @@ public class Power {
      * if VMs utilization history is enabled by calling
      * {@code vm.getUtilizationHistory().enable()}.
      */
-    public static void printHostsCpuUtilizationAndPowerConsumption(List<Host> hostList) {
+    public static double calculateHostsCpuUtilizationAndEnergyConsumption(List<Host> hostList) {
         System.out.println("\nPhysical Host - CPU Utilisation Stats");
         for (Host host : hostList) {
             // FIXME - if I do need to access the scheduler here (to access custom utilisation logic)
@@ -96,7 +96,7 @@ public class Power {
             printHostCpuUtilizationAndPowerConsumption(host);
         }
         System.out.println();
-        printTotalPower(hostList);
+        return calculateTotalEnergy(hostList);
     }
 
     /**
@@ -127,7 +127,7 @@ public class Power {
          */
     }
 
-    public static void printTotalPower(List<Host> hostList) {
+    public static double calculateTotalEnergy(List<Host> hostList) {
         double totalPower = 0;
         double totalEnergy = 0;
         double upTimeHours = 0;
@@ -168,6 +168,7 @@ public class Power {
         System.out.println("DC Overhead Energy = " + df1.format(new Pue().incrementalEnergyOverhead(totalEnergy)/1000) + "kWh");
 
         System.out.println();
+        return totalEnergy;
     }
 
     public static PowerServer wattsPerServer(CustomCloudletScheduler scheduler, Host host) {
