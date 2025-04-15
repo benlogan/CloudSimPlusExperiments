@@ -3,6 +3,7 @@ package com.loganbe;
 import com.loganbe.interventions.InterventionSuite;
 import com.loganbe.power.Power;
 import com.loganbe.templates.SimSpecBigCompany;
+import com.loganbe.templates.SimSpecBigCompanyUnlimited;
 import org.cloudsimplus.allocationpolicies.VmAllocationPolicy;
 import org.cloudsimplus.allocationpolicies.VmAllocationPolicySimple;
 import org.cloudsimplus.brokers.DatacenterBroker;
@@ -42,7 +43,10 @@ public class Main {
     private List<Cloudlet> cloudletList;
     private Datacenter datacenter;
 
-    private SimSpecBigCompany simSpec = new SimSpecBigCompany();
+    private BigInteger totalAccumulatedMips;
+
+    //private SimSpecBigCompany simSpec = new SimSpecBigCompany();
+    private SimSpecBigCompanyUnlimited simSpec = new SimSpecBigCompanyUnlimited();
 
     private int simCount = 1;
     private Map<Integer, Double> energyMap = new HashMap();
@@ -54,7 +58,6 @@ public class Main {
         main.runSimulation(null);
 
         // multiple sim runs...
-
         InterventionSuite interventions = new InterventionSuite(main);
         main.runSimulation(interventions);
 
@@ -77,6 +80,13 @@ public class Main {
         Log.setLevel(ch.qos.logback.classic.Level.INFO); // THERE IS NO DEBUG LOGGING (AND ONLY MINIMAL TRACE)!
 
         simulation = new CloudSimPlus(0.01); // trying to ensure all events are processed, without any misses
+
+        // whenever a cloudlet completes, we will add to this number (must be reset for each sim run!)
+        totalAccumulatedMips = BigInteger.valueOf(0);
+
+        if(simSpec.DURATION > 0) {
+            simulation.terminateAt(simSpec.DURATION); // 24hrs
+        }
 
         datacenter = createDatacenter();
 
@@ -156,9 +166,15 @@ public class Main {
 
         LOGGER.info("Simulation End Time " + simulation.clockInHours() + "h or " + simulation.clockInMinutes() + "m");
 
+        int totalWorkExpected = simSpec.SIM_TOTAL_WORK;
+        if(simSpec.CLOUDLET_LENGTH == -10000) {
+            // overwrite it - it will now be a function of how long we run the simulation for (not pre-determined)
+            totalWorkExpected = simSpec.HOST_MIPS * simSpec.HOSTS * simSpec.DURATION;
+        }
+
         //BigInteger totalSubmittedMips = BigInteger.valueOf(simSpec.CLOUDLETS)
         //        .multiply(BigInteger.valueOf(simSpec.CLOUDLET_TOTAL_WORK));
-        LOGGER.info("Total Work Expected " + simSpec.SIM_TOTAL_WORK + " MIPS");
+        LOGGER.info("Total Work Expected " + totalWorkExpected + " MIPS");
         LOGGER.info("Total Work Completed " + totalAccumulatedMips + " MIPS"); // per core?
         //LOGGER.info("Total Work Completed " + (totalAccumulatedMips.multiply(BigInteger.valueOf(simSpec.HOSTS).multiply(BigInteger.valueOf(simSpec.HOST_PES)))) + " MIPS");
 
@@ -167,17 +183,20 @@ public class Main {
             actualAccumulatedMips = actualAccumulatedMips.add(BigInteger.valueOf(cloudlet.getTotalLength()));
         }
         LOGGER.info("Actual Work Completed " + actualAccumulatedMips + " MIPS");
-        if(!BigInteger.valueOf(simSpec.SIM_TOTAL_WORK).equals(actualAccumulatedMips)) {
-            LOGGER.error("MIPS Before/After Not Equal - incomplete work?");
-            LOGGER.error("Unfinished MIPS = " + BigInteger.valueOf(simSpec.SIM_TOTAL_WORK).subtract(actualAccumulatedMips));
+
+        if(BigInteger.valueOf(totalWorkExpected).subtract(actualAccumulatedMips).intValue() > (simSpec.HOST_MIPS * simSpec.HOSTS * (10 * 60))) { // acceptable error - 10 minutes of processing time
+            //LOGGER.error("MIPS Before/After Not Equal - incomplete work?");
+            LOGGER.error("Unfinished MIPS = " + BigInteger.valueOf(totalWorkExpected).subtract(actualAccumulatedMips));
         }
 
-        //double expectedCompletionTimeS = (simSpec.SIM_TOTAL_WORK / (simSpec.HOST_PES * simSpec.HOST_MIPS)); // doesn't matter how many cores the host has, we can only use 1 host at a time (with space scheduler)
-        double expectedCompletionTimeS = (simSpec.SIM_TOTAL_WORK / (simSpec.HOSTS * simSpec.HOST_MIPS));
-        LOGGER.info("Expected Completion Time " + (expectedCompletionTimeS / 60 / 60) + "hr(s)");
-        LOGGER.info("Actual Completion Time " + simulation.clockInHours() + "hr(s)");
-        if((simulation.clock() - expectedCompletionTimeS) > 100) { // less than a small tolerance for error
-            LOGGER.error("Gap in expected completion time (assuming full utilisation) = " + (simulation.clock() - expectedCompletionTimeS) + "s");
+        if(simSpec.DURATION == -1) { // don't bother calculating this, unless it's a fixed time frame simulation
+            //double expectedCompletionTimeS = (simSpec.SIM_TOTAL_WORK / (simSpec.HOST_PES * simSpec.HOST_MIPS)); // doesn't matter how many cores the host has, we can only use 1 host at a time (with space scheduler)
+            double expectedCompletionTimeS = (totalWorkExpected / (simSpec.HOSTS * simSpec.HOST_MIPS));
+            LOGGER.info("Expected Completion Time " + (expectedCompletionTimeS / 60 / 60) + "hr(s)");
+            LOGGER.info("Actual Completion Time " + simulation.clockInHours() + "hr(s)");
+            if ((simulation.clock() - expectedCompletionTimeS) > 100) { // less than a small tolerance for error
+                LOGGER.error("Gap in expected completion time (assuming full utilisation) = " + (simulation.clock() - expectedCompletionTimeS) + "s");
+            }
         }
 
         //final var cloudletFinishedList = broker.getCloudletFinishedList();
@@ -459,9 +478,6 @@ public class Main {
         }
         return vmList;
     }
-
-    // whenever a cloudlet completes, we will add to this number
-    public BigInteger totalAccumulatedMips = BigInteger.valueOf(0);
 
     // creates a list of Cloudlets (cloud applications)
     private List<Cloudlet> createCloudlets() {
