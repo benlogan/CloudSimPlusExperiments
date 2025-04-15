@@ -51,7 +51,7 @@ public class Main {
     private Main() {
         /*Enables just some level of log messages.
           Make sure to import org.cloudsimplus.util.Log;*/
-        Log.setLevel(ch.qos.logback.classic.Level.TRACE); // THERE IS NO DEBUG LOGGING (AND ONLY MINIMAL TRACE)!
+        Log.setLevel(ch.qos.logback.classic.Level.INFO); // THERE IS NO DEBUG LOGGING (AND ONLY MINIMAL TRACE)!
 
         simulation = new CloudSimPlus(0.01); // trying to ensure all events are processed, without any misses
 
@@ -127,7 +127,7 @@ public class Main {
             LOGGER.error("Some Cloudlets Remain Unfinished : " + incomplete);
         }
 
-        LOGGER.info("Simulation End Time " + Math.round(simulation.clockInHours()) + "h");
+        LOGGER.info("Simulation End Time " + simulation.clockInHours() + "h or " + simulation.clockInMinutes() + "m");
 
         //BigInteger totalSubmittedMips = BigInteger.valueOf(simSpec.CLOUDLETS)
         //        .multiply(BigInteger.valueOf(simSpec.CLOUDLET_TOTAL_WORK));
@@ -145,10 +145,11 @@ public class Main {
             LOGGER.error("Unfinished MIPS = " + BigInteger.valueOf(simSpec.SIM_TOTAL_WORK).subtract(actualAccumulatedMips));
         }
 
-        double expectedCompletionTimeS = (simSpec.SIM_TOTAL_WORK / (simSpec.HOST_PES * simSpec.HOST_MIPS));
+        //double expectedCompletionTimeS = (simSpec.SIM_TOTAL_WORK / (simSpec.HOST_PES * simSpec.HOST_MIPS)); // doesn't matter how many cores the host has, we can only use 1 host at a time (with space scheduler)
+        double expectedCompletionTimeS = (simSpec.SIM_TOTAL_WORK / (simSpec.HOSTS * simSpec.HOST_MIPS));
         LOGGER.info("Expected Completion Time " + (expectedCompletionTimeS / 60 / 60) + "hr(s)");
-        LOGGER.info("Actual Completion Time " + Math.round(simulation.clockInHours()) + "hr(s)");
-        if(simulation.clock() != expectedCompletionTimeS) {
+        LOGGER.info("Actual Completion Time " + simulation.clockInHours() + "hr(s)");
+        if((simulation.clock() - expectedCompletionTimeS) > 100) { // less than a small tolerance for error
             LOGGER.error("Gap in expected completion time (assuming full utilisation) = " + (simulation.clock() - expectedCompletionTimeS) + "s");
         }
 
@@ -176,7 +177,7 @@ public class Main {
         List<CustomVm> vmList = broker.getVmCreatedList();
 
         //printCloudletExecutionStats(vmList);
-        printVcpuExecutionStats(vmList);
+        //printVcpuExecutionStats(vmList);
 
         // these tables are very confusing and fundamentally wrong!
         // the current version implies that cloudlet 0 runs exclusively at first, but only on host 0 and vm 0
@@ -185,7 +186,7 @@ public class Main {
         // and the cloudlet view probably needs fixing to show multiple entries per row where appropriate
 
         new Power().printHostsCpuUtilizationAndPowerConsumption(hostList);
-        printCustomUtilisation(vmList, hostList);
+        //printCustomUtilisation(vmList, hostList);
         //new Power().printVmsCpuUtilizationAndPowerConsumption(vmList);
 
         // print out the new custom utilisation data (accurate!)
