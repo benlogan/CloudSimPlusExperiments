@@ -11,8 +11,8 @@ public class CustomVm extends VmSimple {
 
     private List<Long> vcpuUsageHistory;
 
-    public CustomVm(int id, int numberOfCores) {
-        super(id, numberOfCores);
+    public CustomVm(int mips, int numberOfCores) {
+        super(mips, numberOfCores);
         // Create a vCPU usage history array
         vcpuUsageHistory = new ArrayList<>();
         for (int i = 0; i < numberOfCores; i++) {
@@ -60,4 +60,5 @@ public class CustomVm extends VmSimple {
     public Map<Integer, Map<Integer, Double>> getVcpuMipsUsageMapNew() {
         return vcpuMipsUsageMapNew;
     }
+
 }

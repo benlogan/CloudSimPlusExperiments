@@ -60,6 +60,31 @@ public class CustomCloudletScheduler extends CloudletSchedulerSpaceShared {
         return super.updateCloudletProcessing(cle, currentTime);
     }*/
 
+    /*
+    // useful method to override if you are investigating why a cloudlet might be waiting for resources
+    @Override
+    protected boolean canExecuteCloudletInternal(final CloudletExecution cle) {
+
+        //System.out.println(cle.getCloudlet().getVm().getProcessor().getAvailableResource());
+        //System.out.println(cle.getPesNumber());
+
+        // this correctly shows that the VM has capacity
+        // but because we were using a shared scheduler object, there was a pointer to a different instance of the VM object that doesn't have capacity!
+
+        if(isThereEnoughFreePesForCloudlet(cle)) {
+            System.err.println("THERE IS ENOUGH CAPACITY TO RUN!");
+        }
+
+        return isThereEnoughFreePesForCloudlet(cle);
+    }*/
+
+    /*
+    @Override
+    public void setVm(final Vm vm) {
+        System.out.println("SETTING VM IN SCHEDULER : " + vm.getId() + " uuid: " + vm.getUid() +  " host: " + vm.getHost() + " resources: " + vm.getProcessor().getAvailableResource());
+        super.setVm(vm);
+    }*/
+
     double lastUpdateTime = 0;
 
     @Override
@@ -107,6 +132,14 @@ public class CustomCloudletScheduler extends CloudletSchedulerSpaceShared {
         double timeDelta = currentTime - lastUpdateTime;
         hostElapsedTime.put(hostId, hostElapsedTime.getOrDefault(hostId, 0.0) + timeDelta);
         lastUpdateTime = currentTime;
+
+        //System.out.println("Cloudlets in WAITING LIST " + getCloudletWaitingList().size());
+        /*
+        for (CloudletExecution cloudlet : getCloudletWaitingList()) {
+            if (cloudlet.getCloudlet().getStatus() == Cloudlet.Status.QUEUED) {
+                System.out.println("Cloudlet " + cloudlet.getCloudlet().getId() + " is waiting in the queue.");
+            }
+        }*/
 
         return super.updateCloudletProcessing(cle, currentTime);
     }

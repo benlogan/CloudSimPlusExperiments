@@ -87,13 +87,17 @@ public class Power {
      * if VMs utilization history is enabled by calling
      * {@code vm.getUtilizationHistory().enable()}.
      */
-    public static void printHostsCpuUtilizationAndPowerConsumption(CustomCloudletScheduler scheduler, List<Host> hostList) {
+    public static void printHostsCpuUtilizationAndPowerConsumption(List<Host> hostList) {
         System.out.println("\nPhysical Host - CPU Utilisation Stats");
         for (Host host : hostList) {
-            printHostCpuUtilizationAndPowerConsumption(scheduler, host);
+            // FIXME - if I do need to access the scheduler here (to access custom utilisation logic)
+            // then we need to access it via the host/vm relationship
+            // I think this would need to be refactored entirely, now that we are correctly using a new instance of the scheduler for each VM
+            //host.getVmList().get(0).getCloudletScheduler()
+            printHostCpuUtilizationAndPowerConsumption(host);
         }
         System.out.println();
-        printTotalPower(scheduler, hostList);
+        printTotalPower(hostList);
     }
 
     /**
@@ -104,25 +108,42 @@ public class Power {
      *
      * @param host
      */
-    public static void printHostCpuUtilizationAndPowerConsumption(CustomCloudletScheduler scheduler, Host host) {
-        //HostResourceStats cpuStats = host.getCpuUtilizationStats();
-        //final double utilizationPercentMean = cpuStats.getMean();
+    public static void printHostCpuUtilizationAndPowerConsumption(Host host) {
+        // framework method (OLD)
+        HostResourceStats cpuStats = host.getCpuUtilizationStats();
+        final double utilizationPercentMean = cpuStats.getMean();
+        final double watts = host.getPowerModel().getPower(utilizationPercentMean);
+        System.out.printf(
+                "Host %2d CPU Usage mean: %6.1f%% | Power Consumption mean: %8.0fW%n",
+                host.getId(), utilizationPercentMean * 100, watts);
 
+        // new custom method
+        /*
         PowerServer ps = wattsPerServer(scheduler, host);
         System.out.printf(
                 "Host %2d CPU Usage mean: %6.1f%% | Power Consumption mean: %8.0fW%n",
                 host.getId(), ps.getUtilizationPercentMean() * 100, ps.getWatts());
+         */
     }
 
-    public static void printTotalPower(CustomCloudletScheduler scheduler, List<Host> hostList) {
+    public static void printTotalPower(List<Host> hostList) {
         double totalPower = 0;
         double totalEnergy = 0;
         double upTimeHours = 0;
         for (final Host host : hostList) {
-            //final HostResourceStats cpuStats = host.getCpuUtilizationStats();
-            //final double utilizationPercentMean = cpuStats.getMean();
-            //final double watts = host.getPowerModel().getPower(utilizationPercentMean);
+            // framework method (OLD)
+            final HostResourceStats cpuStats = host.getCpuUtilizationStats();
+            final double utilizationPercentMean = cpuStats.getMean();
+            final double watts = host.getPowerModel().getPower(utilizationPercentMean);
 
+            totalPower += watts;
+
+            upTimeHours = host.getTotalUpTime() / 60 / 60;
+            double energy = watts * upTimeHours;
+            totalEnergy += energy;
+
+            // new method (custom utilisation) - no longer required?
+            /*
             PowerServer ps = wattsPerServer(scheduler, host);
 
             totalPower += ps.getWatts();
@@ -130,6 +151,7 @@ public class Power {
             upTimeHours = host.getTotalUpTime() / 60 / 60;
             double energy = ps.getWatts() * upTimeHours;
             totalEnergy += energy;
+            */
         }
         DecimalFormat df = new DecimalFormat("#");
 

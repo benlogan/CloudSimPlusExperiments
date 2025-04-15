@@ -1,9 +1,7 @@
 package com.loganbe;
 
 import com.loganbe.templates.SimSpecBigCompany;
-import com.loganbe.templates.SimSpecSequentialSmall;
 import org.cloudsimplus.allocationpolicies.VmAllocationPolicy;
-import org.cloudsimplus.allocationpolicies.VmAllocationPolicyRoundRobin;
 import org.cloudsimplus.allocationpolicies.VmAllocationPolicySimple;
 import org.cloudsimplus.brokers.DatacenterBroker;
 import org.cloudsimplus.brokers.DatacenterBrokerSimple;
@@ -11,7 +9,6 @@ import org.cloudsimplus.builders.tables.CloudletsTableBuilder;
 import org.cloudsimplus.builders.tables.CloudletsTableBuilderExtended;
 import org.cloudsimplus.builders.tables.TableBuilderAbstract;
 import org.cloudsimplus.cloudlets.Cloudlet;
-import org.cloudsimplus.cloudlets.CloudletExecution;
 import org.cloudsimplus.cloudlets.CloudletSimpleFixed;
 import org.cloudsimplus.core.CloudSimPlus;
 import org.cloudsimplus.datacenters.Datacenter;
@@ -22,6 +19,7 @@ import org.cloudsimplus.resources.Pe;
 import org.cloudsimplus.resources.PeSimple;
 import org.cloudsimplus.schedulers.cloudlet.CustomCloudletScheduler;
 import org.cloudsimplus.schedulers.cloudlet.CustomVm;
+import org.cloudsimplus.schedulers.vm.VmScheduler;
 import org.cloudsimplus.util.Log;
 import org.cloudsimplus.utilizationmodels.UtilizationModelDynamic;
 import org.cloudsimplus.vms.Vm;
@@ -44,7 +42,6 @@ public class Main {
     private Datacenter datacenter;
 
     private SimSpecBigCompany simSpec = new SimSpecBigCompany();
-    //private SimSpecSequentialSmall simSpec = new SimSpecSequentialSmall();
 
     public static final Logger LOGGER = LoggerFactory.getLogger(Main.class.getSimpleName());
 
@@ -187,20 +184,20 @@ public class Main {
         // then we start on cloudlet 1 on host 1, on vm 1
         // none of this is right. surely cloudlet 0 is actually being broken up and running on all cores simultaneously
         // and the cloudlet view probably needs fixing to show multiple entries per row where appropriate
-        // ACTUALLY SEEMS LIKE SPACE SCHEDULER IS ONLY USING 1 PHYSICAL AT A TIME - scheduler bug FIXME
-        // obviously utilisation stats should reflect that (they don't - hence the need for custom utilisation measure)
 
-        new Power().printHostsCpuUtilizationAndPowerConsumption((CustomCloudletScheduler) simSpec.scheduler, hostList);
+        new Power().printHostsCpuUtilizationAndPowerConsumption(hostList);
         //new Power().printVmsCpuUtilizationAndPowerConsumption(vmList);
 
         // print out the new custom utilisation data (accurate!)
+        // no longer needed - we are now using this measure in the power/energy code
+        /*
         CustomCloudletScheduler scheduler = (CustomCloudletScheduler) simSpec.scheduler;
         for(Host host : datacenter.getHostList()) {
             double elapsedTime = scheduler.getHostElapsedTime(host.getId());
             double endTime = simulation.clock();
             double utilisation = elapsedTime / endTime * 100.0;
             LOGGER.info("getHostElapsedTime (Host " + host.getId() + ")" + " elapsed time(s) = " + Math.round(scheduler.getHostElapsedTime(host.getId())) + " utilisation = " + Math.round(utilisation) + "%");
-        }
+        }*/
     }
 
     // after simulation completes, print MIPS and percentages
@@ -365,7 +362,7 @@ public class Main {
 
     // creates a list of VMs
     private List<Vm> createVms() {
-        LOGGER.info("createVms, using scheduler : " + simSpec.scheduler);
+        //LOGGER.info("createVms, using scheduler : " + simSpec.scheduler); // FIXME don't create a new wasted instance, just to tell the type!
         LOGGER.info("createVms, creating " + simSpec.VMS + " VMs, across " + simSpec.HOSTS + " hosts");
         final var vmList = new ArrayList<Vm>(simSpec.VMS);
         for (int i = 0; i < simSpec.VMS; i++) {
@@ -376,11 +373,14 @@ public class Main {
 
             // uses a CloudletSchedulerTimeShared by default to schedule Cloudlets
             // may not always result in full cpu utilisation
-            vm.setCloudletScheduler(simSpec.scheduler); // note - this is important, the choice can determine if queuing is supported!
+
+            //vm.setCloudletScheduler(simSpec.scheduler); // note - this is important, the choice can determine if queuing is supported!
             // if I leave it off (default) - time scheduler, then no queueing and jobs execute as fast as they theoretically can
 
-            // WORKINGHERE - unclear why space scheduler appears to be blocking across hosts (preventing parallel execution)
-            // remember the host also appears fully allocated all the time (which is wrong, or unexpected, but might at least explain why cloudlets arent being ran in parllel)
+            // unclear why space scheduler appears to be blocking across hosts (preventing parallel execution)
+            // remember the host also appears fully allocated all the time (which is wrong, or unexpected, but at least explains why cloudlets aren't being ran in parallel)
+            // fix - each VM must have its own CloudletScheduler instance (otherwise parts of the system become consused and start sharing a single VM!)
+            vm.setCloudletScheduler(simSpec.getScheduler());
 
             //LOGGER.info("getCloudletScheduler : " + vm.getCloudletScheduler());
 
@@ -420,8 +420,6 @@ public class Main {
         UtilizationModelDynamic utilizationModelMemory = new UtilizationModelDynamic(0.25); // 25% RAM
 
         for (int i = 0; i < simSpec.CLOUDLETS; i++) {
-            // use 100% of CPU, i.e. one core each
-            // FIXME - am I making a mistake here, it's going to use all virtual cores - so this should be 4 and not 1?
             final var cloudlet = new CloudletSimpleFixed(simSpec.CLOUDLET_LENGTH, simSpec.CLOUDLET_PES, utilizationModel);
 
             // one core each but only 25% of the available memory (and bandwidth), to enable parallel execution
@@ -462,7 +460,7 @@ public class Main {
                 // So this scheduler doesn't suit scenarios where you are overloading the hardware!
             });
 
-            ///*
+            /*
             cloudlet.addOnUpdateProcessingListener(info -> {
                 //LOGGER.trace("CLOUDLET UPDATE PROCESSING : " + info.getCloudlet().getId() + " time = " + info.getTime());
 
@@ -490,13 +488,13 @@ public class Main {
                     // since CloudSim assigns a Cloudlet to a VM immediately, it marks the CPU as fully utilized, even if the Cloudlet is waiting
                     // so, this is by design. this is not appropriate for accurate power simulations!
                     // hence the need for calculating our own custom utilisation metric...
-                }*/
+                }*//*
 
-                // WORKING HERE - IS THIS THE SCHEDULING PROBLEM?
                 for (Host host : datacenter.getHostList()) {
-                    //CustomCloudletScheduler scheduler = (CustomCloudletScheduler) host.getVmScheduler();
+                    VmScheduler vms = host.getVmScheduler();
                     // this is a VmSchedulerSpaceShared - could this be where the problem is re scheduling of the VMs?
-                    CustomCloudletScheduler scheduler = (CustomCloudletScheduler) host.getVmList().get(0).getCloudletScheduler();
+
+                    //CustomCloudletScheduler scheduler = (CustomCloudletScheduler) host.getVmList().get(0).getCloudletScheduler();
                     //System.err.println("HOST : " + host.getId() + " getCloudletExecList " + scheduler.getCloudletExecList().size());
                     //System.err.println("HOST : " + host.getId() + " getCloudletWaitingList " + scheduler.getCloudletWaitingList().size());
 
@@ -504,7 +502,7 @@ public class Main {
                     // and each host has 239 in waiting. so the system fully thinks it is parallel processing when its not!
                 }
             });
-            //*/
+            */
 
             cloudletList.add(cloudlet);
         }

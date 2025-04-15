@@ -33,12 +33,9 @@ public class SimSpecBigCompany {
     public static final int VM_STORAGE = 10_000;           // 10GB
 
     // number of cloudlets
-    // base on number of available cores, X2 - i.e. will execute 2 batches sequentially
+    // base on number of available cores, X2 - i.e. will execute multiple batches sequentially
     // we want 24 (1 hr each), resulting in a 24hr simulation
     public static final int CLOUDLETS = 24 * HOSTS;
-    // shouldn't 48 execute in 24 hrs, if I have 2 hosts!?
-    // not if I'm only using half the cores
-    // FIXME - if I am only using half the cores, why are we seeing 100% utilisation for both hosts
 
     public static final int CLOUDLET_PES = VM_PES;
     // NOT how many cores to use, rather how many are needed! (or how many it's allowed to use!?)
@@ -56,6 +53,11 @@ public class SimSpecBigCompany {
     public static final int SIM_TOTAL_WORK = CLOUDLETS * CLOUDLET_LENGTH;    // total amount of work (varies depending on how many cores you deploy cloudlets to!) - the same cloudlet can be deployed to multiple cores
 
     //public CloudletScheduler scheduler = new CloudletSchedulerSpaceShared();    // will complete all work - nothing unfinished
-    public CloudletScheduler scheduler = new CustomCloudletScheduler();         // using a custom scheduler (that in turn uses default time scheduler) in order to track vcpu usage
+    //public CloudletScheduler scheduler = new CustomCloudletScheduler();         // using a custom scheduler (that in turn uses default time scheduler) in order to track vcpu usage
+
+    public CloudletScheduler getScheduler() {
+        // MUST return a new instance each time (for each VM)
+        return new CustomCloudletScheduler();
+    }
 
 }
