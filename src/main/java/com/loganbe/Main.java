@@ -1,5 +1,6 @@
 package com.loganbe;
 
+import com.loganbe.interventions.InterventionSuite;
 import com.loganbe.power.Power;
 import com.loganbe.templates.SimSpecBigCompany;
 import org.cloudsimplus.allocationpolicies.VmAllocationPolicy;
@@ -120,6 +121,9 @@ public class Main {
         });*/
 
         //simulation.terminateAt(10000); // won't make any difference if you have unfinished cloudlets! (because the events have probably already been processed)
+
+        // immediately before we start the sim, apply any interventions;
+        new InterventionSuite(this);
 
         simulation.start();
 
