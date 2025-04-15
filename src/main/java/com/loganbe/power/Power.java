@@ -1,9 +1,8 @@
-package com.loganbe;
+package com.loganbe.power;
 
 import org.cloudsimplus.hosts.Host;
 import org.cloudsimplus.power.models.PowerModel;
 import org.cloudsimplus.power.models.PowerModelHostSimple;
-import org.cloudsimplus.schedulers.cloudlet.CloudletScheduler;
 import org.cloudsimplus.schedulers.cloudlet.CustomCloudletScheduler;
 import org.cloudsimplus.schedulers.cloudlet.CustomVm;
 import org.cloudsimplus.vms.HostResourceStats;
@@ -162,7 +161,10 @@ public class Power {
         System.out.println("Energy Consumption = " + df.format(totalPower) + "Wh (i.e. per hour)");
 
         DecimalFormat df1 = new DecimalFormat("#.##");
-        System.out.println("Total Energy = " + df.format(totalEnergy) + "Wh (" + df1.format(totalEnergy/1000) + " KWh) consumed in " + df1.format(upTimeHours) + "hr(s)");
+        System.out.println("Total Energy = " + df.format(totalEnergy) + "Wh (" + df1.format(totalEnergy/1000) + " kWh) consumed in " + df1.format(upTimeHours) + "hr(s)");
+
+        System.out.println("Total Carbon = " + new Carbon().energyToCarbon(totalEnergy/1000) + "kg");
+
         System.out.println();
     }
 

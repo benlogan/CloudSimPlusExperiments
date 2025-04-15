@@ -1,5 +1,6 @@
 package com.loganbe;
 
+import com.loganbe.power.Power;
 import com.loganbe.templates.SimSpecBigCompany;
 import org.cloudsimplus.allocationpolicies.VmAllocationPolicy;
 import org.cloudsimplus.allocationpolicies.VmAllocationPolicySimple;

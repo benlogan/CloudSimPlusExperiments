@@ -1,4 +1,4 @@
-package com.loganbe;
+package com.loganbe.power;
 
 /**
  * simply for storing the results of a servers power/energy calculation
