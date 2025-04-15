@@ -10,6 +10,10 @@ import java.net.URL;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+/**
+ * representing the carbon emissions of software, based on energy consumption
+ * this could constitute a major PhD and framework contribution, with more work
+ */
 public class Carbon {
 
     // carbon intensity (gCO₂/kWh)
@@ -68,7 +72,7 @@ public class Carbon {
                 int actual = intensity.getInt("actual");
 
                 // output the actual carbon intensity
-                System.out.println("Actual carbon intensity (UK): " + actual + " gCO₂/kWh");
+                System.out.println("Actual Carbon Intensity (UK): " + actual + " gCO₂/kWh");
                 return actual;
             } else {
                 System.err.println("Failed to fetch data. HTTP response code: " + conn.getResponseCode());

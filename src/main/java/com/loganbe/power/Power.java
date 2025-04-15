@@ -161,9 +161,11 @@ public class Power {
         System.out.println("Energy Consumption = " + df.format(totalPower) + "Wh (i.e. per hour)");
 
         DecimalFormat df1 = new DecimalFormat("#.##");
-        System.out.println("Total Energy = " + df.format(totalEnergy) + "Wh (" + df1.format(totalEnergy/1000) + " kWh) consumed in " + df1.format(upTimeHours) + "hr(s)");
+        System.out.println("Total Compute Energy = " + df.format(totalEnergy) + "Wh (" + df1.format(totalEnergy/1000) + "kWh) consumed in " + df1.format(upTimeHours) + "hr(s)");
 
-        System.out.println("Total Carbon = " + new Carbon().energyToCarbon(totalEnergy/1000) + "kg");
+        System.out.println("Total Compute Carbon = " + new Carbon().energyToCarbon(totalEnergy/1000) + "kg");
+
+        System.out.println("DC Overhead Energy = " + df1.format(new Pue().incrementalEnergyOverhead(totalEnergy)/1000) + "kWh");
 
         System.out.println();
     }
