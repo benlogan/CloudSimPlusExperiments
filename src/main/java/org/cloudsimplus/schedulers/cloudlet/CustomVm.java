@@ -61,4 +61,8 @@ public class CustomVm extends VmSimple {
         return vcpuMipsUsageMapNew;
     }
 
+    public final void overwriteMips(final double mips) {
+        super.setMips(mips);
+    }
+
 }

@@ -11,10 +11,10 @@ import org.cloudsimplus.power.models.PowerModelHostSimple;
  */
 public class EfficientServers {
 
-    private final double sampleSize = 0.5; // only change half of the servers...
+    private final double SAMPLE_SIZE = 0.5; // only change half of the servers...
 
     public EfficientServers(Main simulation) {
-        double sample = simulation.hostList.size() * sampleSize;
+        double sample = simulation.hostList.size() * SAMPLE_SIZE;
 
         int count = 0;
         for(Host host : simulation.hostList) {

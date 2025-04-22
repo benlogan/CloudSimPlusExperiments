@@ -39,7 +39,8 @@ public class Main {
 
     private CloudSimPlus simulation;
     private DatacenterBroker broker;
-    private List<Vm> vmList;
+    public List<Host> hostList;
+    public List<Vm> vmList;
     private List<Cloudlet> cloudletList;
     private Datacenter datacenter;
 
@@ -58,12 +59,12 @@ public class Main {
         main.runSimulation(null);
 
         // multiple sim runs...
-        InterventionSuite interventions = new InterventionSuite(main);
-        main.runSimulation(interventions);
+        main.runSimulation(new InterventionSuite());
 
         main.printEnergy();
     }
 
+    // FIXME need a results object for sim executions and a comparator function
     private void printEnergy() {
         for(int i = 1; i < simCount; i++) {
             System.out.println("Sim Run : " + i + " energy : " + energyMap.get(i) + "Wh");
@@ -85,7 +86,7 @@ public class Main {
         totalAccumulatedMips = BigInteger.valueOf(0);
 
         if(simSpec.DURATION > 0) {
-            simulation.terminateAt(simSpec.DURATION); // 24hrs
+            simulation.terminateAt(simSpec.DURATION);
         }
 
         datacenter = createDatacenter();
@@ -155,7 +156,7 @@ public class Main {
 
         // immediately before we start the sim, apply any interventions;
         if(interventions != null) {
-            interventions.applyInterventions();
+            interventions.applyInterventions(this);
         }
         simulation.start();
 
@@ -376,8 +377,6 @@ public class Main {
         // end of table
         System.out.println("----------------------------------------------------------------------");
     }
-
-    public List<Host> hostList;
 
     // create a Datacenter and its Hosts
     private Datacenter createDatacenter() {

@@ -31,10 +31,11 @@ public class SimSpecBigCompanyUnlimited {
     public static final double CLOUDLET_UTILISATION = 1;            // % extent to which the job will utilise the CPU (other resources i.e. RAM are specified separately)
 
     // unlimited - keep the work coming!
-    public static final int CLOUDLET_LENGTH = -10000;
+    public static final int CLOUDLET_LENGTH = -1; // any negative number means run continuously (throughput is then determined by VM capacity)
     public static final int SIM_TOTAL_WORK = -1;
 
-    public static final int DURATION = 60 * 60 * 24; // 24hrs
+    public static final int DURATION = 60 * 60; // 1hr
+    //public static final int DURATION = 60 * 60 * 24; // 24hrs
 
     public CloudletScheduler getScheduler() {
         // MUST return a new instance each time (for each VM)
