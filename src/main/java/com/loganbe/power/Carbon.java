@@ -80,7 +80,8 @@ public class Carbon {
 
             conn.disconnect();
         } catch (Exception e) {
-            e.printStackTrace();
+            System.err.println("Exception while fetching Carbon Intensity : " + e.getMessage());
+            //e.printStackTrace();
         }
         System.err.println("Failed to fetch Carbon Intensity, using default value!");
         return carbonIntensity;
