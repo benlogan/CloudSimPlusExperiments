@@ -162,8 +162,8 @@ public class Main {
 
         LOGGER.info("Simulation End Time " + simulation.clockInHours() + "h or " + simulation.clockInMinutes() + "m");
 
-        int totalWorkExpected = simSpec.getCloudletSpecification().SIM_TOTAL_WORK;
-        if(simSpec.getCloudletSpecification().CLOUDLET_LENGTH == -10000) {
+        int totalWorkExpected = simSpec.getCloudletSpecification().getSim_total_work();
+        if(simSpec.getCloudletSpecification().getCloudlet_length() == -1) {
             // overwrite it - it will now be a function of how long we run the simulation for (not pre-determined)
             totalWorkExpected = simSpec.getHostSpecification().getHost_mips() * simSpec.getHostSpecification().getHosts() * SimulationConfig.DURATION;
         }
@@ -475,18 +475,18 @@ public class Main {
 
     // creates a list of Cloudlets (cloud applications)
     private List<Cloudlet> createCloudlets() {
-        LOGGER.info("Creating " + simSpec.getCloudletSpecification().CLOUDLETS + " Cloudlets");
-        final var cloudletList = new ArrayList<Cloudlet>(simSpec.getCloudletSpecification().CLOUDLETS);
+        LOGGER.info("Creating " + simSpec.getCloudletSpecification().getCloudlets() + " Cloudlets");
+        final var cloudletList = new ArrayList<Cloudlet>(simSpec.getCloudletSpecification().getCloudlets());
 
         // utilizationModel defining the Cloudlets use X% of any resource all the time
 
-        final var utilizationModel = new UtilizationModelDynamic(simSpec.getCloudletSpecification().CLOUDLET_UTILISATION);
+        final var utilizationModel = new UtilizationModelDynamic(simSpec.getCloudletSpecification().getCloudlet_utilisation());
         //final var utilizationModel = new UtilizationModelFull(); // not making a difference!
 
         UtilizationModelDynamic utilizationModelMemory = new UtilizationModelDynamic(0.25); // 25% RAM
 
-        for (int i = 0; i < simSpec.getCloudletSpecification().CLOUDLETS; i++) {
-            final var cloudlet = new CloudletSimpleFixed(simSpec.getCloudletSpecification().CLOUDLET_LENGTH, simSpec.getCloudletSpecification().CLOUDLET_PES, utilizationModel);
+        for (int i = 0; i < simSpec.getCloudletSpecification().getCloudlets(); i++) {
+            final var cloudlet = new CloudletSimpleFixed(simSpec.getCloudletSpecification().getCloudlet_length(), simSpec.getCloudletSpecification().getCloudlet_pes(), utilizationModel);
 
             // one core each but only 25% of the available memory (and bandwidth), to enable parallel execution
             cloudlet.setUtilizationModelRam(utilizationModelMemory);

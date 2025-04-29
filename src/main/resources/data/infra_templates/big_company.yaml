@@ -14,3 +14,10 @@ vmSpecification:
   vm_ram: 2048
   vm_bw: 1000
   vm_storage: 10_000
+
+cloudletSpecification:
+  cloudlets: 10
+  cloudlet_pes: 16
+  cloudlet_utilisation: 1
+  cloudlet_length: -1
+  sim_total_work: -1

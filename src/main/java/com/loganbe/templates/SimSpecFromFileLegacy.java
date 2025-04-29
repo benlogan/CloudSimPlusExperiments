@@ -50,7 +50,7 @@ public class SimSpecFromFileLegacy implements SimSpecInterface {
 
     @Override
     public CloudletSpecification getCloudletSpecification() {
-        return null;
+        return legacyTemplate.getCloudletSpecification();
     }
 
 }

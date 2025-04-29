@@ -9,6 +9,8 @@ public class LegacyTemplate {
 
     private VmSpecification vmSpecification;
 
+    private CloudletSpecification cloudletSpecification;
+
     public VmSpecification getVmSpecification() {
         return vmSpecification;
     }
@@ -23,6 +25,14 @@ public class LegacyTemplate {
 
     public void setHostSpecification(HostSpecification hostSpecification) {
         this.hostSpecification = hostSpecification;
+    }
+
+    public CloudletSpecification getCloudletSpecification() {
+        return cloudletSpecification;
+    }
+
+    public void setCloudletSpecification(CloudletSpecification cloudletSpecification) {
+        this.cloudletSpecification = cloudletSpecification;
     }
 
 }
