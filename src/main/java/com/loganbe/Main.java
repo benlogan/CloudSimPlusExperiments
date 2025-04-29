@@ -2,8 +2,7 @@ package com.loganbe;
 
 import com.loganbe.interventions.InterventionSuite;
 import com.loganbe.power.Power;
-import com.loganbe.templates.SimSpecBigCompany;
-import com.loganbe.templates.SimSpecBigCompanyUnlimited;
+import com.loganbe.templates.SimSpecFromFile;
 import org.cloudsimplus.allocationpolicies.VmAllocationPolicy;
 import org.cloudsimplus.allocationpolicies.VmAllocationPolicySimple;
 import org.cloudsimplus.brokers.DatacenterBroker;
@@ -33,10 +32,6 @@ import java.util.*;
 
 public class Main {
 
-    // defines the time intervals to keep hosts CPU utilisation history records
-    // a scheduling interval is required to gather CPU utilisation statistics
-    private static final double SCHEDULING_INTERVAL = 0.1; // defaults to 0! i.e. continuous processing
-
     private CloudSimPlus simulation;
     private DatacenterBroker broker;
     public List<Host> hostList;
@@ -46,8 +41,7 @@ public class Main {
 
     private BigInteger totalAccumulatedMips;
 
-    //private SimSpecBigCompany simSpec = new SimSpecBigCompany();
-    private SimSpecBigCompanyUnlimited simSpec = new SimSpecBigCompanyUnlimited();
+    private SimSpecFromFile simSpec = new SimSpecFromFile("data/infra_templates/big_company.yaml");
 
     private int simCount = 1;
     private Map<Integer, Double> energyMap = new HashMap();
@@ -85,8 +79,8 @@ public class Main {
         // whenever a cloudlet completes, we will add to this number (must be reset for each sim run!)
         totalAccumulatedMips = BigInteger.valueOf(0);
 
-        if(simSpec.DURATION > 0) {
-            simulation.terminateAt(simSpec.DURATION);
+        if(SimulationConfig.DURATION > 0) {
+            simulation.terminateAt(SimulationConfig.DURATION);
         }
 
         datacenter = createDatacenter();
@@ -167,10 +161,10 @@ public class Main {
 
         LOGGER.info("Simulation End Time " + simulation.clockInHours() + "h or " + simulation.clockInMinutes() + "m");
 
-        int totalWorkExpected = simSpec.SIM_TOTAL_WORK;
-        if(simSpec.CLOUDLET_LENGTH == -10000) {
+        int totalWorkExpected = simSpec.getCloudletSpecification().SIM_TOTAL_WORK;
+        if(simSpec.getCloudletSpecification().CLOUDLET_LENGTH == -10000) {
             // overwrite it - it will now be a function of how long we run the simulation for (not pre-determined)
-            totalWorkExpected = simSpec.HOST_MIPS * simSpec.HOSTS * simSpec.DURATION;
+            totalWorkExpected = simSpec.getHostSpecification().getHost_mips() * simSpec.getHostSpecification().getHosts() * SimulationConfig.DURATION;
         }
 
         //BigInteger totalSubmittedMips = BigInteger.valueOf(simSpec.CLOUDLETS)
@@ -185,14 +179,14 @@ public class Main {
         }
         LOGGER.info("Actual Work Completed " + actualAccumulatedMips + " MIPS");
 
-        if(BigInteger.valueOf(totalWorkExpected).subtract(actualAccumulatedMips).intValue() > (simSpec.HOST_MIPS * simSpec.HOSTS * (10 * 60))) { // acceptable error - 10 minutes of processing time
+        if(BigInteger.valueOf(totalWorkExpected).subtract(actualAccumulatedMips).intValue() > (simSpec.getHostSpecification().getHost_mips() * simSpec.getHostSpecification().getHosts() * (10 * 60))) { // acceptable error - 10 minutes of processing time
             //LOGGER.error("MIPS Before/After Not Equal - incomplete work?");
             LOGGER.error("Unfinished MIPS = " + BigInteger.valueOf(totalWorkExpected).subtract(actualAccumulatedMips));
         }
 
-        if(simSpec.DURATION == -1) { // don't bother calculating this, unless it's a fixed time frame simulation
+        if(SimulationConfig.DURATION == -1) { // don't bother calculating this, unless it's a fixed time frame simulation
             //double expectedCompletionTimeS = (simSpec.SIM_TOTAL_WORK / (simSpec.HOST_PES * simSpec.HOST_MIPS)); // doesn't matter how many cores the host has, we can only use 1 host at a time (with space scheduler)
-            double expectedCompletionTimeS = (totalWorkExpected / (simSpec.HOSTS * simSpec.HOST_MIPS));
+            double expectedCompletionTimeS = (totalWorkExpected / (simSpec.getHostSpecification().getHosts() * simSpec.getHostSpecification().getHost_mips()));
             LOGGER.info("Expected Completion Time " + (expectedCompletionTimeS / 60 / 60) + "hr(s)");
             LOGGER.info("Actual Completion Time " + simulation.clockInHours() + "hr(s)");
             if ((simulation.clock() - expectedCompletionTimeS) > 100) { // less than a small tolerance for error
@@ -380,8 +374,8 @@ public class Main {
 
     // create a Datacenter and its Hosts
     private Datacenter createDatacenter() {
-        hostList = new ArrayList<>(simSpec.HOSTS);
-        for(int i = 0; i < simSpec.HOSTS; i++) {
+        hostList = new ArrayList<>(simSpec.getHostSpecification().getHosts());
+        for(int i = 0; i < simSpec.getHostSpecification().getHosts(); i++) {
             final var host = createHost();
             hostList.add(host);
         }
@@ -393,18 +387,18 @@ public class Main {
         dc.setVmAllocationPolicy(vmAllocationPolicy); // default, but just in case!
         //dc.setVmAllocationPolicy(new VmAllocationPolicyRoundRobin()); // should enforce parallel execution, but doesn't
 
-        dc.setSchedulingInterval(SCHEDULING_INTERVAL);
+        dc.setSchedulingInterval(SimulationConfig.SCHEDULING_INTERVAL);
         //DatacenterSimple powerDatacenter = new DatacenterSimple(simulation, hostList, new VmAllocationPolicySimple(), 1.0); // example power code
 
         return dc;
     }
 
     private Host createHost() {
-        final var peList = new ArrayList<Pe>(simSpec.HOST_PES);
+        final var peList = new ArrayList<Pe>(simSpec.getHostSpecification().getHost_pes());
         // list of Host's CPUs (Processing Elements, PEs)
-        for (int i = 0; i < simSpec.HOST_PES; i++) {
+        for (int i = 0; i < simSpec.getHostSpecification().getHost_pes(); i++) {
             // uses a PeProvisionerSimple by default to provision PEs for VMs
-            peList.add(new PeSimple(simSpec.HOST_MIPS));
+            peList.add(new PeSimple(simSpec.getHostSpecification().getHost_mips()));
         }
 
         /*
@@ -412,7 +406,7 @@ public class Main {
         and VmSchedulerSpaceShared for VM scheduling.
         */
 
-        Host host = new HostSimpleFixed(simSpec.HOST_RAM, simSpec.HOST_BW, simSpec.HOST_STORAGE, peList);
+        Host host = new HostSimpleFixed(simSpec.getHostSpecification().getHost_ram(), simSpec.getHostSpecification().getHost_bw(), simSpec.getHostSpecification().getHost_storage(), peList);
 
         final var powerModel = new PowerModelHostSimple(Power.MAX_POWER, Power.STATIC_POWER);
         powerModel
@@ -437,13 +431,13 @@ public class Main {
     // creates a list of VMs
     private List<Vm> createVms() {
         //LOGGER.info("createVms, using scheduler : " + simSpec.scheduler); // FIXME don't create a new wasted instance, just to tell the type!
-        LOGGER.info("createVms, creating " + simSpec.VMS + " VMs, across " + simSpec.HOSTS + " hosts");
-        final var vmList = new ArrayList<Vm>(simSpec.VMS);
-        for (int i = 0; i < simSpec.VMS; i++) {
+        LOGGER.info("createVms, creating " + simSpec.getVmSpecification().VMS + " VMs, across " + simSpec.getHostSpecification().getHosts() + " hosts");
+        final var vmList = new ArrayList<Vm>(simSpec.getVmSpecification().VMS);
+        for (int i = 0; i < simSpec.getVmSpecification().VMS; i++) {
             //final var vm = new VmSimple(simSpec.VM_MIPS, simSpec.VM_PES);
-            final var vm = new CustomVm(simSpec.VM_MIPS, simSpec.VM_PES);
+            final var vm = new CustomVm(simSpec.getVmSpecification().VM_MIPS, simSpec.getVmSpecification().VM_PES);
 
-            vm.setRam(simSpec.VM_RAM).setBw(simSpec.VM_BW).setSize(simSpec.VM_STORAGE);
+            vm.setRam(simSpec.getVmSpecification().VM_RAM).setBw(simSpec.getVmSpecification().VM_BW).setSize(simSpec.getVmSpecification().VM_STORAGE);
 
             // uses a CloudletSchedulerTimeShared by default to schedule Cloudlets
             // may not always result in full cpu utilisation
@@ -480,18 +474,18 @@ public class Main {
 
     // creates a list of Cloudlets (cloud applications)
     private List<Cloudlet> createCloudlets() {
-        LOGGER.info("Creating " + simSpec.CLOUDLETS + " Cloudlets");
-        final var cloudletList = new ArrayList<Cloudlet>(simSpec.CLOUDLETS);
+        LOGGER.info("Creating " + simSpec.getCloudletSpecification().CLOUDLETS + " Cloudlets");
+        final var cloudletList = new ArrayList<Cloudlet>(simSpec.getCloudletSpecification().CLOUDLETS);
 
         // utilizationModel defining the Cloudlets use X% of any resource all the time
 
-        final var utilizationModel = new UtilizationModelDynamic(simSpec.CLOUDLET_UTILISATION);
+        final var utilizationModel = new UtilizationModelDynamic(simSpec.getCloudletSpecification().CLOUDLET_UTILISATION);
         //final var utilizationModel = new UtilizationModelFull(); // not making a difference!
 
         UtilizationModelDynamic utilizationModelMemory = new UtilizationModelDynamic(0.25); // 25% RAM
 
-        for (int i = 0; i < simSpec.CLOUDLETS; i++) {
-            final var cloudlet = new CloudletSimpleFixed(simSpec.CLOUDLET_LENGTH, simSpec.CLOUDLET_PES, utilizationModel);
+        for (int i = 0; i < simSpec.getCloudletSpecification().CLOUDLETS; i++) {
+            final var cloudlet = new CloudletSimpleFixed(simSpec.getCloudletSpecification().CLOUDLET_LENGTH, simSpec.getCloudletSpecification().CLOUDLET_PES, utilizationModel);
 
             // one core each but only 25% of the available memory (and bandwidth), to enable parallel execution
             cloudlet.setUtilizationModelRam(utilizationModelMemory);
