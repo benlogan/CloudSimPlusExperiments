@@ -6,16 +6,15 @@ import org.cloudsimplus.resources.Pe;
 import org.cloudsimplus.schedulers.cloudlet.CustomVm;
 import org.cloudsimplus.vms.Vm;
 
+/**
+ * half the servers, have double the processing capacity (host & VM)
+ */
 public class PowerfulServers {
 
     private final double SAMPLE_SIZE = 0.5;     // only change half of the servers...
 
     private final double PROCESSING_POWER = 2;  // doubling processing capacity...
 
-    /**
-     * double the processing capacity...
-     * @param simulation
-     */
     public PowerfulServers(Main simulation) {
         double sample = simulation.hostList.size() * SAMPLE_SIZE;
 
