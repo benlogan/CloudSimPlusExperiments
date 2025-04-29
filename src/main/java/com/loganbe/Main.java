@@ -3,6 +3,7 @@ package com.loganbe;
 import com.loganbe.interventions.InterventionSuite;
 import com.loganbe.power.Power;
 import com.loganbe.templates.SimSpecFromFile;
+import com.loganbe.templates.SimSpecFromFileLegacy;
 import org.cloudsimplus.allocationpolicies.VmAllocationPolicy;
 import org.cloudsimplus.allocationpolicies.VmAllocationPolicySimple;
 import org.cloudsimplus.brokers.DatacenterBroker;
@@ -41,7 +42,7 @@ public class Main {
 
     private BigInteger totalAccumulatedMips;
 
-    private SimSpecFromFile simSpec = new SimSpecFromFile("data/infra_templates/big_company.yaml");
+    private SimSpecFromFileLegacy simSpec = new SimSpecFromFileLegacy("data/infra_templates/big_company.yaml");
 
     private int simCount = 1;
     private Map<Integer, Double> energyMap = new HashMap();
@@ -431,13 +432,13 @@ public class Main {
     // creates a list of VMs
     private List<Vm> createVms() {
         //LOGGER.info("createVms, using scheduler : " + simSpec.scheduler); // FIXME don't create a new wasted instance, just to tell the type!
-        LOGGER.info("createVms, creating " + simSpec.getVmSpecification().VMS + " VMs, across " + simSpec.getHostSpecification().getHosts() + " hosts");
-        final var vmList = new ArrayList<Vm>(simSpec.getVmSpecification().VMS);
-        for (int i = 0; i < simSpec.getVmSpecification().VMS; i++) {
+        LOGGER.info("createVms, creating " + simSpec.getVmSpecification().getVms() + " VMs, across " + simSpec.getHostSpecification().getHosts() + " hosts");
+        final var vmList = new ArrayList<Vm>(simSpec.getVmSpecification().getVms());
+        for (int i = 0; i < simSpec.getVmSpecification().getVms(); i++) {
             //final var vm = new VmSimple(simSpec.VM_MIPS, simSpec.VM_PES);
-            final var vm = new CustomVm(simSpec.getVmSpecification().VM_MIPS, simSpec.getVmSpecification().VM_PES);
+            final var vm = new CustomVm(simSpec.getVmSpecification().getVm_mips(), simSpec.getVmSpecification().getVm_pes());
 
-            vm.setRam(simSpec.getVmSpecification().VM_RAM).setBw(simSpec.getVmSpecification().VM_BW).setSize(simSpec.getVmSpecification().VM_STORAGE);
+            vm.setRam(simSpec.getVmSpecification().getVm_ram()).setBw(simSpec.getVmSpecification().getVm_bw()).setSize(simSpec.getVmSpecification().getVm_storage());
 
             // uses a CloudletSchedulerTimeShared by default to schedule Cloudlets
             // may not always result in full cpu utilisation
