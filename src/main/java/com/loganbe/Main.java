@@ -54,9 +54,9 @@ public class Main {
         main.runSimulation(null);
 
         // multiple sim runs...
-        main.runSimulation(new InterventionSuite());
+        //main.runSimulation(new InterventionSuite());
 
-        main.printEnergy();
+        //main.printEnergy();
     }
 
     // FIXME need a results object for sim executions and a comparator function
@@ -279,7 +279,7 @@ public class Main {
     // after simulation completes, print MIPS and percentages
     public void printCloudletExecutionStats(List<CustomVm> vmList) {
         for(CustomVm vm : vmList) {
-            Map<Integer, Map<Integer, Double>> vcpuMipsUsageMap = vm.getVcpuMipsUsageMapNew();
+            Map<Integer, Map<Integer, Double>> vcpuMipsUsageMap = vm.getVcpuMipsConsumedMap();
 
             // for each vCPU
             for (Map.Entry<Integer, Map<Integer, Double>> vcpuEntry : vcpuMipsUsageMap.entrySet()) {
@@ -329,11 +329,11 @@ public class Main {
         System.out.println("----------------------------------------------------------------------");
 
         for(CustomVm vm : vmList) {
-            Map<Integer, Map<Integer, Double>> vcpuMipsUsageMap = vm.getVcpuMipsUsageMapNew();
+            Map<Integer, Map<Integer, Double>> vcpuMipsUsageMap = vm.getVcpuMipsConsumedMap();
 
             // check - if you are not using the new custom scheduler, this won't be populated!
-            if(vm.getVcpuMipsUsageMapNew().size() == 0) {
-                System.err.println("getVcpuMipsUsageMapNew IS EMPTY!");
+            if(vm.getVcpuMipsConsumedMap().size() == 0) {
+                System.err.println("getVcpuMipsConsumedMap IS EMPTY!");
             }
 
             // iterate through the vCPU and cloudlet MIPS usage map

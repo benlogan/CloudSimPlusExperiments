@@ -105,15 +105,15 @@ public class CustomCloudletScheduler extends CloudletSchedulerSpaceShared {
 
         // Track MIPS usage on each vCPU for each cloudlet
         for (int i = 0; i < numberOfVcpus; i++) {
-            if (i < activeCloudlets) {
-                customVm.trackCloudletMipsUsage(i, cloudletId, cle.getRemainingCloudletLength());
+                //customVm.trackCloudletMipsUsage(i, cloudletId, cle.getRemainingCloudletLength()); // doesn't work when cloudlet length hasn't been specified
+                // FIXME but we should perhaps use that method when we are dealing with fixed length cloudlets?
+                customVm.trackCloudletMipsUsage(i, cloudletId, (cle.getCloudlet().getFinishedLengthSoFar() / numberOfVcpus));
                 /*
                 if(cloudletId == 0) {
                     System.out.println("Time: " + currentTime + " | Cloudlet " + cloudletId + " is running on vCPU " + i + " with " + mipsPerCloudlet + " MIPS. getRemainingCloudletLength : " + cle.getRemainingCloudletLength());
                     System.out.println("accumulated MIPS : " + customVm.getVcpuMipsUsageMapNew().get(i).get(cloudletId));
                 }
                 */
-            }
         }
 
         //System.out.println("getCloudletExecList : " + getCloudletExecList().size());

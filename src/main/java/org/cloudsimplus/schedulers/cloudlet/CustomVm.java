@@ -29,36 +29,52 @@ public class CustomVm extends VmSimple {
         return vcpuUsageHistory;
     }
 
-    private final Map<Integer, Map<Integer, Double>> vcpuMipsUsageMap = new HashMap<>(); // vCPU -> Cloudlet ID -> MIPS Used
+    // remaining MIPS (disabled - likely to have been broken by refactoring)
+    /*
+    private final Map<Integer, Map<Integer, Double>> vcpuMipsRemainingMap = new HashMap<>(); // vCPU -> Cloudlet ID -> MIPS Used
 
-    private final Map<Integer, Map<Integer, Double>> vcpuMipsUsageMapNew = new HashMap<>();
+    public Map<Integer, Map<Integer, Double>> getVcpuMipsRemainingMap() {
+        return vcpuMipsRemainingMap;
+    }*/
 
-    public void trackCloudletMipsUsage(int vcpuIndex, int cloudletId, double mipsRemaining) {
-        vcpuMipsUsageMap.putIfAbsent(vcpuIndex, new HashMap<>());
-        vcpuMipsUsageMapNew.putIfAbsent(vcpuIndex, new HashMap<>());
+    // consumed MIPS - accumulated total
+    // for each VM, a map VCPUs (for each VCPU, a map of all cloudlets)
+    private final Map<Integer, Map<Integer, Double>> vcpuMipsConsumedMap = new HashMap<>();
+
+    public Map<Integer, Map<Integer, Double>> getVcpuMipsConsumedMap() {
+        return vcpuMipsConsumedMap;
+    }
+
+    /**
+     * mipsRemaining (via getRemainingCloudletLength) is not a reliable source for unlimited length continuously running cloudlets
+     * replaced with a measure of what has been done so far (via getFinishedLengthSoFar)
+     * @param vcpuIndex
+     * @param cloudletId
+     * @param mipsDoneSoFar
+     */
+    public void trackCloudletMipsUsage(int vcpuIndex, int cloudletId, double mipsDoneSoFar) {
+        /*
+        // calculate remaining work
+        vcpuMipsRemainingMap.putIfAbsent(vcpuIndex, new HashMap<>());
 
         // get the existing MIPS usage for this cloudlet on this vCPU
-        double existingMipsRemaining = vcpuMipsUsageMap.get(vcpuIndex).getOrDefault(cloudletId, 0.0);
+        double existingMipsRemaining = vcpuMipsRemainingMap.get(vcpuIndex).getOrDefault(cloudletId, 0.0);
 
         // ensure we don't double count by only adding new MIPS usage since the last update
-        double newMipsRemaining = mipsRemaining - existingMipsRemaining;
+        double newMipsRemaining = mipsDoneSoFar - existingMipsRemaining;
 
-        vcpuMipsUsageMap.get(vcpuIndex).put(cloudletId, existingMipsRemaining + newMipsRemaining);
+        vcpuMipsRemainingMap.get(vcpuIndex).put(cloudletId, existingMipsRemaining + newMipsRemaining);
+        */
 
-        double existingMips = vcpuMipsUsageMapNew.get(vcpuIndex).getOrDefault(cloudletId, 0.0);
-        if(existingMipsRemaining != 0) { // don't add in the initial iteration
-            vcpuMipsUsageMapNew.get(vcpuIndex).put(cloudletId, existingMips + Math.abs(newMipsRemaining));
-        }
-    }
+        // calculate work done (progress since last time)...
+        vcpuMipsConsumedMap.putIfAbsent(vcpuIndex, new HashMap<>()); // if empty for this vcpu, then create
 
-    // remaining
-    public Map<Integer, Map<Integer, Double>> getVcpuMipsUsageMap() {
-        return vcpuMipsUsageMap;
-    }
+        double existingMips = vcpuMipsConsumedMap.get(vcpuIndex).getOrDefault(cloudletId, 0.0);
+        double mipsSinceLastTime = mipsDoneSoFar - existingMips;
 
-    // used - accumulated total
-    public Map<Integer, Map<Integer, Double>> getVcpuMipsUsageMapNew() {
-        return vcpuMipsUsageMapNew;
+        //if(existingMipsRemaining != 0) { // don't add in the initial iteration
+            vcpuMipsConsumedMap.get(vcpuIndex).put(cloudletId, existingMips + mipsSinceLastTime);
+        //}
     }
 
     public final void overwriteMips(final double mips) {
