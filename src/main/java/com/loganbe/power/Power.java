@@ -9,6 +9,8 @@ import org.cloudsimplus.vms.HostResourceStats;
 import org.cloudsimplus.vms.Vm;
 import org.cloudsimplus.vms.VmResourceStats;
 
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.text.DecimalFormat;
 import java.util.List;
 
@@ -86,7 +88,7 @@ public class Power {
      * if VMs utilization history is enabled by calling
      * {@code vm.getUtilizationHistory().enable()}.
      */
-    public static double calculateHostsCpuUtilizationAndEnergyConsumption(List<Host> hostList) {
+    public static double calculateHostsCpuUtilizationAndEnergyConsumption(List<Host> hostList, BigInteger workDone) {
         System.out.println("\nPhysical Host - CPU Utilisation Stats");
         for (Host host : hostList) {
             // FIXME - if I do need to access the scheduler here (to access custom utilisation logic)
@@ -96,7 +98,7 @@ public class Power {
             printHostCpuUtilizationAndPowerConsumption(host);
         }
         System.out.println();
-        return calculateTotalEnergy(hostList);
+        return calculateTotalEnergy(hostList, workDone);
     }
 
     /**
@@ -127,7 +129,7 @@ public class Power {
          */
     }
 
-    public static double calculateTotalEnergy(List<Host> hostList) {
+    public static double calculateTotalEnergy(List<Host> hostList, BigInteger workDone) {
         double totalPower = 0;
         double totalEnergy = 0;
         double upTimeHours = 0;
@@ -162,6 +164,10 @@ public class Power {
 
         DecimalFormat df1 = new DecimalFormat("#.##");
         System.out.println("Total Compute Energy = " + df.format(totalEnergy) + "Wh (" + df1.format(totalEnergy/1000) + "kWh) consumed in " + df1.format(upTimeHours) + "hr(s)");
+
+        // energy efficiency - work done (MIPS), per unit of energy required/consumed
+        BigDecimal bd = BigDecimal.valueOf(totalEnergy / workDone.doubleValue());
+        System.out.println("Average Energy Efficiency (energy per unit of work) : " + bd.toPlainString() + "Wh/MI");
 
         System.out.println("Total Compute Carbon = " + new Carbon().energyToCarbon(totalEnergy/1000) + "kg");
 

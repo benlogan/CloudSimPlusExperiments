@@ -240,7 +240,7 @@ public class Main {
         // none of this is right. surely cloudlet 0 is actually being broken up and running on all cores simultaneously
         // and the cloudlet view probably needs fixing to show multiple entries per row where appropriate
 
-        double totalEnergy = new Power().calculateHostsCpuUtilizationAndEnergyConsumption(hostList);
+        double totalEnergy = new Power().calculateHostsCpuUtilizationAndEnergyConsumption(hostList, actualAccumulatedMips);
         energyMap.put(simCount, totalEnergy);
         workMap.put(simCount, actualAccumulatedMips.doubleValue());
         //printCustomUtilisation(vmList, hostList);
