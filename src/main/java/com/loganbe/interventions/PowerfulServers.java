@@ -7,7 +7,8 @@ import org.cloudsimplus.schedulers.cloudlet.CustomVm;
 import org.cloudsimplus.vms.Vm;
 
 /**
- * half the servers, have double the processing capacity (host & VM)
+ * half of the servers have double the processing capacity (host & VM)
+ * note - this will get more work done, but it won't change the energy usage
  */
 public class PowerfulServers {
 

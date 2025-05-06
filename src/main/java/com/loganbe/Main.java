@@ -180,9 +180,14 @@ public class Main {
         }
         LOGGER.info("Actual Work Completed " + actualAccumulatedMips + " MIPS");
 
-        if(BigInteger.valueOf(totalWorkExpected).subtract(actualAccumulatedMips).intValue() > (simSpec.getHostSpecification().getHost_mips() * simSpec.getHostSpecification().getHosts() * (10 * 60))) { // acceptable error - 10 minutes of processing time
-            //LOGGER.error("MIPS Before/After Not Equal - incomplete work?");
+        // MIPS Before/After Not Equal - incomplete work (or more than expected)
+        // acceptable error - 1 minute(s) of processing time
+        long acceptableError = simSpec.getHostSpecification().getHost_mips() * simSpec.getHostSpecification().getHosts() * (1 * 60);
+        long deltaWork = BigInteger.valueOf(totalWorkExpected).subtract(actualAccumulatedMips).intValue();
+        if(deltaWork > 0 && deltaWork > acceptableError) {
             LOGGER.error("Unfinished MIPS = " + BigInteger.valueOf(totalWorkExpected).subtract(actualAccumulatedMips));
+        } else if(deltaWork < 0 && (Math.abs(deltaWork) > acceptableError)) {
+            LOGGER.error("Excess MIPS = " + actualAccumulatedMips.subtract(BigInteger.valueOf(totalWorkExpected)));
         }
 
         if(SimulationConfig.DURATION == -1) { // don't bother calculating this, unless it's a fixed time frame simulation
