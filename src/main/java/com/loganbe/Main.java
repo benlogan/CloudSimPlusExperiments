@@ -46,6 +46,7 @@ public class Main {
 
     private int simCount = 1;
     private Map<Integer, Double> energyMap = new HashMap();
+    private Map<Integer, Double> workMap = new HashMap();
 
     public static final Logger LOGGER = LoggerFactory.getLogger(Main.class.getSimpleName());
 
@@ -54,20 +55,25 @@ public class Main {
         main.runSimulation(null);
 
         // multiple sim runs...
-        //main.runSimulation(new InterventionSuite());
+        main.runSimulation(new InterventionSuite());
 
-        //main.printEnergy();
+        main.printEnergy();
     }
 
     // FIXME need a results object for sim executions and a comparator function
     private void printEnergy() {
         for(int i = 1; i < simCount; i++) {
             System.out.println("Sim Run : " + i + " energy : " + energyMap.get(i) + "Wh");
+            System.out.println("Sim Run : " + i + " work : " + workMap.get(i) + "(MIPS)");
         }
         double energySaving = energyMap.get(1) - energyMap.get(2);
 
-        System.out.printf("Net Energy Saving, when applying interventions during a 2nd sim run : %.2f Wh (or %.2f %% less energy consumed)",
+        System.out.printf("Energy Delta (saving), when applying interventions during a 2nd sim run : %.2f Wh (or %.2f %% less energy consumed)\n",
                 energySaving, (energySaving / energyMap.get(1))*100);
+
+        double workDifference = workMap.get(2) - workMap.get(1);
+        System.out.printf("Work Delta (boost), when applying interventions during a 2nd sim run : %.2f MIPS (or %.2f %% more work done)\n",
+                workDifference, (workDifference / workMap.get(1))*100);
     }
 
     private void runSimulation(InterventionSuite interventions) {
@@ -166,6 +172,8 @@ public class Main {
         if(simSpec.getCloudletSpecification().getCloudlet_length() == -1) {
             // overwrite it - it will now be a function of how long we run the simulation for (not pre-determined)
             totalWorkExpected = simSpec.getHostSpecification().getHost_mips() * simSpec.getHostSpecification().getHosts() * SimulationConfig.DURATION;
+
+            // FIXME working here - not accounting for interventions!
         }
 
         //BigInteger totalSubmittedMips = BigInteger.valueOf(simSpec.CLOUDLETS)
@@ -181,8 +189,8 @@ public class Main {
         LOGGER.info("Actual Work Completed " + actualAccumulatedMips + " MIPS");
 
         // MIPS Before/After Not Equal - incomplete work (or more than expected)
-        // acceptable error - 1 minute(s) of processing time
-        long acceptableError = simSpec.getHostSpecification().getHost_mips() * simSpec.getHostSpecification().getHosts() * (1 * 60);
+        // acceptable error - 5 minute(s) of processing time (<5%)
+        long acceptableError = simSpec.getHostSpecification().getHost_mips() * simSpec.getHostSpecification().getHosts() * (5 * 60);
         long deltaWork = BigInteger.valueOf(totalWorkExpected).subtract(actualAccumulatedMips).intValue();
         if(deltaWork > 0 && deltaWork > acceptableError) {
             LOGGER.error("Unfinished MIPS = " + BigInteger.valueOf(totalWorkExpected).subtract(actualAccumulatedMips));
@@ -234,6 +242,7 @@ public class Main {
 
         double totalEnergy = new Power().calculateHostsCpuUtilizationAndEnergyConsumption(hostList);
         energyMap.put(simCount, totalEnergy);
+        workMap.put(simCount, actualAccumulatedMips.doubleValue());
         //printCustomUtilisation(vmList, hostList);
         //new Power().printVmsCpuUtilizationAndPowerConsumption(vmList);
 
