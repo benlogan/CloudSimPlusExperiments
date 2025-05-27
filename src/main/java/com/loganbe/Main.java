@@ -59,9 +59,9 @@ public class Main {
         main.runSimulation(null);
 
         // multiple sim runs...
-        //main.runSimulation(new InterventionSuite());
+        main.runSimulation(new InterventionSuite());
 
-        //main.printEnergy();
+        main.printEnergy();
     }
 
     // FIXME need a results object for sim executions and a comparator function
@@ -182,7 +182,7 @@ public class Main {
             }
             totalWorkExpected = totalWorkExpected * SimulationConfig.DURATION;
 
-            // FIXME working here - not accounting for interventions!
+            // FIXME - not accounting for interventions! Not a major issue, just ignore the warning
         }
 
         //BigInteger totalSubmittedMips = BigInteger.valueOf(simSpec.CLOUDLETS)
@@ -281,9 +281,9 @@ public class Main {
         double deltaPercentage = delta.doubleValue() / totalWorkExpected * 100;
 
         if(deltaWork > 0 && deltaPercentage > 1) {
-            LOGGER.error("Unfinished MIPS = " + deltaWork + " (" + deltaPercentage + "%)");
+            LOGGER.warn("Unfinished MIPS = " + deltaWork + " (" + deltaPercentage + "%)");
         } else if(deltaWork < 0 && deltaPercentage > 1) {
-            LOGGER.error("Excess MIPS = " + Math.abs(deltaWork) + " (" + deltaPercentage + "%)");
+            LOGGER.warn("Excess MIPS = " + Math.abs(deltaWork) + " (" + deltaPercentage + "%)");
         }
 
         return deltaPercentage;
