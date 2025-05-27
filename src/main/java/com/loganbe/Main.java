@@ -2,9 +2,11 @@ package com.loganbe;
 
 import com.loganbe.interventions.InterventionSuite;
 import com.loganbe.power.Power;
+import com.loganbe.templates.ServersSpecification;
 import com.loganbe.templates.SimSpecFromFile;
 import com.loganbe.templates.SimSpecFromFileLegacy;
 import org.cloudsimplus.allocationpolicies.VmAllocationPolicy;
+import org.cloudsimplus.allocationpolicies.VmAllocationPolicyRoundRobin;
 import org.cloudsimplus.allocationpolicies.VmAllocationPolicySimple;
 import org.cloudsimplus.brokers.DatacenterBroker;
 import org.cloudsimplus.brokers.DatacenterBrokerSimple;
@@ -22,6 +24,7 @@ import org.cloudsimplus.resources.Pe;
 import org.cloudsimplus.resources.PeSimple;
 import org.cloudsimplus.schedulers.cloudlet.CustomCloudletScheduler;
 import org.cloudsimplus.schedulers.cloudlet.CustomVm;
+import org.cloudsimplus.schedulers.vm.VmScheduler;
 import org.cloudsimplus.util.Log;
 import org.cloudsimplus.utilizationmodels.UtilizationModelDynamic;
 import org.cloudsimplus.vms.Vm;
@@ -42,7 +45,8 @@ public class Main {
 
     private BigInteger totalAccumulatedMips;
 
-    private SimSpecFromFileLegacy simSpec = new SimSpecFromFileLegacy("data/infra_templates/big_company.yaml");
+    //private SimSpecFromFileLegacy simSpec = new SimSpecFromFileLegacy("data/infra_templates/big_company.yaml");
+    private SimSpecFromFile simSpec = new SimSpecFromFile("data/infra_templates/example.yaml");
 
     private int simCount = 1;
     private Map<Integer, Double> energyMap = new HashMap();
@@ -55,9 +59,9 @@ public class Main {
         main.runSimulation(null);
 
         // multiple sim runs...
-        main.runSimulation(new InterventionSuite());
+        //main.runSimulation(new InterventionSuite());
 
-        main.printEnergy();
+        //main.printEnergy();
     }
 
     // FIXME need a results object for sim executions and a comparator function
@@ -100,7 +104,7 @@ public class Main {
 
         //broker.setVmDestructionDelay(100); // doesn't necessarily result in VM's hanging around to complete unfinished cloudlets!
 
-        vmList = createVms();
+        vmList = createVmsFromHost();//createVms();
         cloudletList = createCloudlets();
 
         broker.submitVmList(vmList);
@@ -170,8 +174,13 @@ public class Main {
 
         int totalWorkExpected = simSpec.getCloudletSpecification().getSim_total_work();
         if(simSpec.getCloudletSpecification().getCloudlet_length() == -1) {
-            // overwrite it - it will now be a function of how long we run the simulation for (not pre-determined)
-            totalWorkExpected = simSpec.getHostSpecification().getHost_mips() * simSpec.getHostSpecification().getHosts() * SimulationConfig.DURATION;
+            // overwrite it - it's a function of how long we run the simulation for (not pre-determined)
+            totalWorkExpected = 0; //simSpec.getHostSpecification().getHost_mips() * simSpec.getHostSpecification().getHosts() * SimulationConfig.DURATION; // legacy approach (homogenous)
+            for(ServersSpecification server : simSpec.getServerSpecifications()) {
+                int mips = ServersSpecification.calculateMips(server.getSpeed());
+                totalWorkExpected += mips;
+            }
+            totalWorkExpected = totalWorkExpected * SimulationConfig.DURATION;
 
             // FIXME working here - not accounting for interventions!
         }
@@ -188,19 +197,12 @@ public class Main {
         }
         LOGGER.info("Actual Work Completed " + actualAccumulatedMips + " MIPS");
 
-        // MIPS Before/After Not Equal - incomplete work (or more than expected)
-        // acceptable error - 5 minute(s) of processing time (<5%)
-        long acceptableError = simSpec.getHostSpecification().getHost_mips() * simSpec.getHostSpecification().getHosts() * (5 * 60);
-        long deltaWork = BigInteger.valueOf(totalWorkExpected).subtract(actualAccumulatedMips).intValue();
-        if(deltaWork > 0 && deltaWork > acceptableError) {
-            LOGGER.error("Unfinished MIPS = " + BigInteger.valueOf(totalWorkExpected).subtract(actualAccumulatedMips));
-        } else if(deltaWork < 0 && (Math.abs(deltaWork) > acceptableError)) {
-            LOGGER.error("Excess MIPS = " + actualAccumulatedMips.subtract(BigInteger.valueOf(totalWorkExpected)));
-        }
+        calculateWorkDelta(totalWorkExpected, actualAccumulatedMips);
 
         if(SimulationConfig.DURATION == -1) { // don't bother calculating this, unless it's a fixed time frame simulation
             //double expectedCompletionTimeS = (simSpec.SIM_TOTAL_WORK / (simSpec.HOST_PES * simSpec.HOST_MIPS)); // doesn't matter how many cores the host has, we can only use 1 host at a time (with space scheduler)
-            double expectedCompletionTimeS = (totalWorkExpected / (simSpec.getHostSpecification().getHosts() * simSpec.getHostSpecification().getHost_mips()));
+            //double expectedCompletionTimeS = (totalWorkExpected / (simSpec.getHostSpecification().getHosts() * simSpec.getHostSpecification().getHost_mips()));
+            double expectedCompletionTimeS = 0; // FIXME breaking this for now, to get the heterogeneous hardware working
             LOGGER.info("Expected Completion Time " + (expectedCompletionTimeS / 60 / 60) + "hr(s)");
             LOGGER.info("Actual Completion Time " + simulation.clockInHours() + "hr(s)");
             if ((simulation.clock() - expectedCompletionTimeS) > 100) { // less than a small tolerance for error
@@ -257,6 +259,34 @@ public class Main {
             LOGGER.info("getHostElapsedTime (Host " + host.getId() + ")" + " elapsed time(s) = " + Math.round(scheduler.getHostElapsedTime(host.getId())) + " utilisation = " + Math.round(utilisation) + "%");
         }*/
         simCount++;
+    }
+
+    /**
+     * MIPS Before/After Not Equal - incomplete work (or more than expected)
+     * @param totalWorkExpected
+     * @param actualAccumulatedMips
+     * @return
+     */
+    public double calculateWorkDelta(int totalWorkExpected, BigInteger actualAccumulatedMips) {
+        // acceptable error - 5 minute(s) of processing time (<5%)
+        // long acceptableError = simSpec.getHostSpecification().getHost_mips() * simSpec.getHostSpecification().getHosts() * (5 * 60);
+        // moving to pure percentage based approach (+ support for heterogeneous hardware)
+
+        long deltaWork = BigInteger.valueOf(totalWorkExpected).subtract(actualAccumulatedMips).intValue();
+
+        BigInteger expectedBig = BigInteger.valueOf(totalWorkExpected);
+        BigInteger delta = expectedBig.subtract(actualAccumulatedMips).abs();
+
+        // convert to double for percentage calculation
+        double deltaPercentage = delta.doubleValue() / totalWorkExpected * 100;
+
+        if(deltaWork > 0 && deltaPercentage > 1) {
+            LOGGER.error("Unfinished MIPS = " + deltaWork + " (" + deltaPercentage + "%)");
+        } else if(deltaWork < 0 && deltaPercentage > 1) {
+            LOGGER.error("Excess MIPS = " + Math.abs(deltaWork) + " (" + deltaPercentage + "%)");
+        }
+
+        return deltaPercentage;
     }
 
     /**
@@ -389,18 +419,33 @@ public class Main {
 
     // create a Datacenter and its Hosts
     private Datacenter createDatacenter() {
+        // old method
+        /*
         hostList = new ArrayList<>(simSpec.getHostSpecification().getHosts());
         for(int i = 0; i < simSpec.getHostSpecification().getHosts(); i++) {
-            final var host = createHost();
+            final var host = createHost(simSpec.getHostSpecification().getHost_pes(), simSpec.getHostSpecification().getHost_mips(), simSpec.getHostSpecification().getHost_ram(), simSpec.getHostSpecification().getHost_bw(), simSpec.getHostSpecification().getHost_storage());
+            hostList.add(host);
+        }*/
+        // new method
+        hostList = new ArrayList<>(simSpec.getServerSpecifications().size());
+        for(ServersSpecification server : simSpec.getServerSpecifications()) {
+            // MIPS isn't specified - it needs to be calculated
+            int mips = ServersSpecification.calculateMips(server.getSpeed());
+            //System.out.println("SPEED : " + server.getSpeed() + " TO MIPS : " + mips);
+            int ram = (int) (Double.parseDouble(server.getMemory().replaceAll("[^\\d.]", "")) * 1000);
+            //System.out.println("RAM : " + server.getMemory() + " TO MB : " + ram);
+
+            final var host = createHost(server.getCpu(), mips, ram, ServersSpecification.BANDWIDTH, ServersSpecification.STORAGE);
             hostList.add(host);
         }
 
         // uses a VmAllocationPolicySimple by default to allocate VMs
         final var dc = new DatacenterSimpleFixed(simulation, hostList); // this is the critical bug fix!
 
-        VmAllocationPolicy vmAllocationPolicy = new VmAllocationPolicySimple();
-        dc.setVmAllocationPolicy(vmAllocationPolicy); // default, but just in case!
-        //dc.setVmAllocationPolicy(new VmAllocationPolicyRoundRobin()); // should enforce parallel execution, but doesn't
+        //VmAllocationPolicy vmAllocationPolicy = new VmAllocationPolicySimple();
+        //dc.setVmAllocationPolicy(vmAllocationPolicy); // default, but just in case!
+
+        dc.setVmAllocationPolicy(new VmAllocationPolicyRoundRobin()); // don't use best host for VM allocation, use first available
 
         dc.setSchedulingInterval(SimulationConfig.SCHEDULING_INTERVAL);
         //DatacenterSimple powerDatacenter = new DatacenterSimple(simulation, hostList, new VmAllocationPolicySimple(), 1.0); // example power code
@@ -408,12 +453,12 @@ public class Main {
         return dc;
     }
 
-    private Host createHost() {
-        final var peList = new ArrayList<Pe>(simSpec.getHostSpecification().getHost_pes());
+    private Host createHost(int pesCount, int mips, int ram, long bandwidth, long storage) {
+        final var peList = new ArrayList<Pe>(pesCount);
         // list of Host's CPUs (Processing Elements, PEs)
-        for (int i = 0; i < simSpec.getHostSpecification().getHost_pes(); i++) {
+        for (int i = 0; i < pesCount; i++) {
             // uses a PeProvisionerSimple by default to provision PEs for VMs
-            peList.add(new PeSimple(simSpec.getHostSpecification().getHost_mips()));
+            peList.add(new PeSimple(mips));
         }
 
         /*
@@ -421,7 +466,7 @@ public class Main {
         and VmSchedulerSpaceShared for VM scheduling.
         */
 
-        Host host = new HostSimpleFixed(simSpec.getHostSpecification().getHost_ram(), simSpec.getHostSpecification().getHost_bw(), simSpec.getHostSpecification().getHost_storage(), peList);
+        Host host = new HostSimpleFixed(ram, bandwidth, storage, peList);
 
         final var powerModel = new PowerModelHostSimple(Power.MAX_POWER, Power.STATIC_POWER);
         powerModel
@@ -443,10 +488,14 @@ public class Main {
         return host;
     }
 
-    // creates a list of VMs
+    /**
+     * creates a list of VMs (that have been specified in configuration)
+     * @return
+     */
     private List<Vm> createVms() {
-        //LOGGER.info("createVms, using scheduler : " + simSpec.scheduler); // FIXME don't create a new wasted instance, just to tell the type!
-        LOGGER.info("createVms, creating " + simSpec.getVmSpecification().getVms() + " VMs, across " + simSpec.getHostSpecification().getHosts() + " hosts");
+        //LOGGER.info("createVms, using scheduler : " + simSpec.scheduler); // don't create a new wasted instance, just to tell the type!
+        //LOGGER.info("createVms, creating " + simSpec.getVmSpecification().getVms() + " VMs, across " + simSpec.getHostSpecification().getHosts() + " hosts");
+        LOGGER.info("createVms, creating " + simSpec.getVmSpecification().getVms() + " VMs");
         final var vmList = new ArrayList<Vm>(simSpec.getVmSpecification().getVms());
         for (int i = 0; i < simSpec.getVmSpecification().getVms(); i++) {
             //final var vm = new VmSimple(simSpec.VM_MIPS, simSpec.VM_PES);
@@ -484,6 +533,37 @@ public class Main {
 
             vmList.add(vm);
         }
+        return vmList;
+    }
+
+    /**
+     * creates a list of VMs - using the physical host data (they haven't been explicitly specified in configuration)
+     * @return
+     */
+    private List<Vm> createVmsFromHost() {
+        int vmCount = simSpec.getServerSpecifications().size();
+        LOGGER.info("createVms, creating " + vmCount + " VMs");
+        final var vmList = new ArrayList<Vm>(vmCount);
+
+        for(ServersSpecification server : simSpec.getServerSpecifications()) {
+            int IPC = 2;
+            int mips = (int) (Double.parseDouble(server.getSpeed().replaceAll("[^\\d.]", "")) * 1000 * IPC);
+            final var vm = new CustomVm(mips, server.getCpu());
+
+            int ram = (int) (Double.parseDouble(server.getMemory().replaceAll("[^\\d.]", "")) * 1000);
+            vm.setRam(ram);
+
+            vm.setBw(ServersSpecification.BANDWIDTH / 10);
+            vm.setSize(ServersSpecification.STORAGE / 10);
+
+            vm.setCloudletScheduler(simSpec.getScheduler());
+
+            vm.enableUtilizationStats();
+
+            LOGGER.info("Creating new VM. MIPS = " + vm.getMips() + " CPUs = " + vm.getPesNumber());
+            vmList.add(vm);
+        }
+
         return vmList;
     }
 

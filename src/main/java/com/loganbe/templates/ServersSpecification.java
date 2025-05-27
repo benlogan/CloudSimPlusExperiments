@@ -7,13 +7,25 @@ package com.loganbe.templates;
  */
 public class ServersSpecification {
 
+    public static int IPC = 2; // instructions per cycle (FIXME - should also come from config)
+
+    // defaults (not heavily influencing sim for now, so ignore in config)
+    public static long BANDWIDTH = 10_000;
+    public static long STORAGE = 1_000_000;
+
     private String name;
     private String ip;
     private String location;
     private String os;
-    private String cpu;
+    private int cpu;
+    private String speed;
     private String memory;
     private String storage;
+
+    public static int calculateMips(String speed) {
+        int mips = (int) (Double.parseDouble(speed.replaceAll("[^\\d.]", "")) * 1000 * ServersSpecification.IPC);
+        return mips;
+    }
 
     public String getStorage() {
         return storage;
@@ -39,11 +51,11 @@ public class ServersSpecification {
         this.os = os;
     }
 
-    public String getCpu() {
+    public int getCpu() {
         return cpu;
     }
 
-    public void setCpu(String cpu) {
+    public void setCpu(int cpu) {
         this.cpu = cpu;
     }
 
@@ -69,6 +81,14 @@ public class ServersSpecification {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public String getSpeed() {
+        return speed;
+    }
+
+    public void setSpeed(String speed) {
+        this.speed = speed;
     }
 
 }

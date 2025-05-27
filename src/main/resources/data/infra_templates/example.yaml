@@ -26,6 +26,7 @@ servers:
     speed: 2.6GHz
     memory: 16GB
     storage: 256GB
+
 cloudletSpecification:
   cloudlets: 3
   cloudlet_pes: 1

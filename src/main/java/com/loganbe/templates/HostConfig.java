@@ -7,14 +7,24 @@ import java.util.List;
  */
 public class HostConfig {
 
-    private List<HostSpecification> servers;
+    private List<ServersSpecification> servers;
 
-    public List<HostSpecification> getServers() {
+    private CloudletSpecification cloudletSpecification;
+
+    public List<ServersSpecification> getServers() {
         return servers;
     }
 
-    public void setServers(List<HostSpecification> servers) {
+    public void setServers(List<ServersSpecification> servers) {
         this.servers = servers;
+    }
+
+    public CloudletSpecification getCloudletSpecification() {
+        return cloudletSpecification;
+    }
+
+    public void setCloudletSpecification(CloudletSpecification cloudletSpecification) {
+        this.cloudletSpecification = cloudletSpecification;
     }
 
 }

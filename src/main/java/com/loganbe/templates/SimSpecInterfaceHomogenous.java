@@ -4,14 +4,14 @@ import org.cloudsimplus.schedulers.cloudlet.CloudletScheduler;
 
 import java.util.List;
 
-/*
- * enables heterogeneous (mixed) hardware
+/**
+ * legacy spec (assumes hardware is homogenous)
  */
-public interface SimSpecInterface {
+public interface SimSpecInterfaceHomogenous {
 
     CloudletScheduler getScheduler();
 
-    List<ServersSpecification> getServerSpecifications();
+    HostSpecification getHostSpecification();
 
     VmSpecification getVmSpecification();
 

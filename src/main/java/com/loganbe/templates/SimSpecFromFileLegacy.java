@@ -11,7 +11,7 @@ import java.io.InputStream;
 /**
  * read the specification details from YAML (legacy template)
  */
-public class SimSpecFromFileLegacy implements SimSpecInterface {
+public class SimSpecFromFileLegacy implements SimSpecInterfaceHomogenous {
 
     private LegacyTemplate legacyTemplate;
 

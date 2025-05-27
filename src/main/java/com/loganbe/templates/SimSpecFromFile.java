@@ -7,19 +7,17 @@ import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.Constructor;
 
 import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
- * read the specification details from YAML (new template)
- * WIP
+ * read the specification details from YAML (strategic, not legacy, template)
  */
 public class SimSpecFromFile implements SimSpecInterface {
 
-    private ServersSpecification serversSpecification;
-
     public SimSpecFromFile(String filename) {
         LoaderOptions loaderOptions = new LoaderOptions();
-        //Yaml yaml = new Yaml(new Constructor(HostConfig.class, loaderOptions));
-        Yaml yaml = new Yaml(new Constructor(ServersSpecification.class, loaderOptions));
+        Yaml yaml = new Yaml(new Constructor(HostConfig.class, loaderOptions));
 
         InputStream inputStream = SimSpecFromFile.class
                 .getClassLoader()
@@ -29,34 +27,40 @@ public class SimSpecFromFile implements SimSpecInterface {
             throw new RuntimeException(filename + " not found!");
         }
 
-        //HostConfig config = yaml.load(inputStream);
-        serversSpecification = yaml.load(inputStream);
+        HostConfig config = yaml.load(inputStream);
 
         /*
-        for (HostSpecification host : config.getServers()) {
-            System.out.println("Server: " + host.getName() + ", IP: " + host.getIp());
-        }*/
-        //System.out.println("Server Count: " + hostSpecification.getHosts());
+        for (ServersSpecification host : config.getServers()) {
+            System.out.println("Server: " + host.getName());
+        }
+        System.out.println("Server Count: " + config.getServers().size());
+        */
+
+        serversSpecifications = config.getServers();
+
+        cloudletSpecification = config.getCloudletSpecification();
     }
+
+    private List<ServersSpecification> serversSpecifications;
+    private CloudletSpecification cloudletSpecification;
 
     @Override
     public CloudletScheduler getScheduler() {
         return new CustomCloudletScheduler();
     }
 
-    @Override
-    public HostSpecification getHostSpecification() {
-        return null; //FIXME
+    public List<ServersSpecification> getServerSpecifications() {
+        return serversSpecifications;
     }
 
     @Override
     public VmSpecification getVmSpecification() {
-        return null; //FIXME
+        return null; // FIXME for now VM's will be built using the host details, they aren't specified in the config
     }
 
     @Override
     public CloudletSpecification getCloudletSpecification() {
-        return null;
+        return cloudletSpecification;
     }
 
 }

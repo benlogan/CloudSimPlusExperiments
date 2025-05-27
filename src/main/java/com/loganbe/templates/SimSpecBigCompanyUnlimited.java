@@ -9,7 +9,7 @@ import org.cloudsimplus.schedulers.cloudlet.CustomCloudletScheduler;
  *
  * NOTE - this one is now redundant and can be replaced with the big_company.yaml template
  */
-public class SimSpecBigCompanyUnlimited implements SimSpecInterface {
+public class SimSpecBigCompanyUnlimited implements SimSpecInterfaceHomogenous {
 
     @Override
     public CloudletScheduler getScheduler() {
