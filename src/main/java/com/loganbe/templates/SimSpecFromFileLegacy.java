@@ -7,6 +7,7 @@ import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.Constructor;
 
 import java.io.InputStream;
+import java.util.List;
 
 /**
  * read the specification details from YAML (legacy template)
@@ -53,4 +54,7 @@ public class SimSpecFromFileLegacy implements SimSpecInterfaceHomogenous {
         return legacyTemplate.getCloudletSpecification();
     }
 
+    public List<ServersSpecification> getServerSpecifications() {
+        return null;
+    }
 }

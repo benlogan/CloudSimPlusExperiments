@@ -5,6 +5,7 @@ import com.loganbe.power.Power;
 import com.loganbe.templates.ServersSpecification;
 import com.loganbe.templates.SimSpecFromFile;
 import com.loganbe.templates.SimSpecFromFileLegacy;
+import com.loganbe.templates.SimSpecInterfaceHomogenous;
 import org.cloudsimplus.allocationpolicies.VmAllocationPolicy;
 import org.cloudsimplus.allocationpolicies.VmAllocationPolicyRoundRobin;
 import org.cloudsimplus.allocationpolicies.VmAllocationPolicySimple;
@@ -45,8 +46,8 @@ public class Main {
 
     private BigInteger totalAccumulatedMips;
 
-    //private SimSpecFromFileLegacy simSpec = new SimSpecFromFileLegacy("data/infra_templates/big_company.yaml");
-    private SimSpecFromFile simSpec = new SimSpecFromFile("data/infra_templates/example.yaml");
+    private SimSpecFromFileLegacy simSpec = new SimSpecFromFileLegacy("data/infra_templates/big_company.yaml");
+    //private SimSpecFromFile simSpec = new SimSpecFromFile("data/infra_templates/example.yaml");
 
     private int simCount = 1;
     private Map<Integer, Double> energyMap = new HashMap();
@@ -104,7 +105,11 @@ public class Main {
 
         //broker.setVmDestructionDelay(100); // doesn't necessarily result in VM's hanging around to complete unfinished cloudlets!
 
-        vmList = createVmsFromHost();//createVms();
+        if (SimSpecInterfaceHomogenous.class.isAssignableFrom(simSpec.getClass())) {
+            vmList = createVms();
+        } else {
+            vmList = createVmsFromHost();
+        }
         cloudletList = createCloudlets();
 
         broker.submitVmList(vmList);
@@ -175,13 +180,18 @@ public class Main {
         int totalWorkExpected = simSpec.getCloudletSpecification().getSim_total_work();
         if(simSpec.getCloudletSpecification().getCloudlet_length() == -1) {
             // overwrite it - it's a function of how long we run the simulation for (not pre-determined)
-            totalWorkExpected = 0; //simSpec.getHostSpecification().getHost_mips() * simSpec.getHostSpecification().getHosts() * SimulationConfig.DURATION; // legacy approach (homogenous)
-            for(ServersSpecification server : simSpec.getServerSpecifications()) {
-                int mips = ServersSpecification.calculateMips(server.getSpeed());
-                totalWorkExpected += mips;
-            }
-            totalWorkExpected = totalWorkExpected * SimulationConfig.DURATION;
 
+            if (SimSpecInterfaceHomogenous.class.isAssignableFrom(simSpec.getClass())) {
+                LOGGER.warn("Using the legacy template!");
+                totalWorkExpected = simSpec.getHostSpecification().getHost_mips() * simSpec.getHostSpecification().getHosts() * SimulationConfig.DURATION; // legacy approach (homogenous)
+            } else {
+                totalWorkExpected = 0;
+                for (ServersSpecification server : simSpec.getServerSpecifications()) {
+                    int mips = ServersSpecification.calculateMips(server.getSpeed());
+                    totalWorkExpected += mips;
+                }
+                totalWorkExpected = totalWorkExpected * SimulationConfig.DURATION;
+            }
             // FIXME - not accounting for interventions! Not a major issue, just ignore the warning
         }
 
@@ -419,24 +429,25 @@ public class Main {
 
     // create a Datacenter and its Hosts
     private Datacenter createDatacenter() {
-        // old method
-        /*
-        hostList = new ArrayList<>(simSpec.getHostSpecification().getHosts());
-        for(int i = 0; i < simSpec.getHostSpecification().getHosts(); i++) {
-            final var host = createHost(simSpec.getHostSpecification().getHost_pes(), simSpec.getHostSpecification().getHost_mips(), simSpec.getHostSpecification().getHost_ram(), simSpec.getHostSpecification().getHost_bw(), simSpec.getHostSpecification().getHost_storage());
-            hostList.add(host);
-        }*/
-        // new method
-        hostList = new ArrayList<>(simSpec.getServerSpecifications().size());
-        for(ServersSpecification server : simSpec.getServerSpecifications()) {
-            // MIPS isn't specified - it needs to be calculated
-            int mips = ServersSpecification.calculateMips(server.getSpeed());
-            //System.out.println("SPEED : " + server.getSpeed() + " TO MIPS : " + mips);
-            int ram = (int) (Double.parseDouble(server.getMemory().replaceAll("[^\\d.]", "")) * 1000);
-            //System.out.println("RAM : " + server.getMemory() + " TO MB : " + ram);
+        if (SimSpecInterfaceHomogenous.class.isAssignableFrom(simSpec.getClass())) {
+            LOGGER.warn("Using the legacy template!"); // all hosts are equal
+            hostList = new ArrayList<>(simSpec.getHostSpecification().getHosts());
+            for(int i = 0; i < simSpec.getHostSpecification().getHosts(); i++) {
+                final var host = createHost(simSpec.getHostSpecification().getHost_pes(), simSpec.getHostSpecification().getHost_mips(), simSpec.getHostSpecification().getHost_ram(), simSpec.getHostSpecification().getHost_bw(), simSpec.getHostSpecification().getHost_storage());
+                hostList.add(host);
+            }
+        } else {
+            hostList = new ArrayList<>(simSpec.getServerSpecifications().size());
+            for (ServersSpecification server : simSpec.getServerSpecifications()) {
+                // MIPS isn't specified - it needs to be calculated
+                int mips = ServersSpecification.calculateMips(server.getSpeed());
+                //System.out.println("SPEED : " + server.getSpeed() + " TO MIPS : " + mips);
+                int ram = (int) (Double.parseDouble(server.getMemory().replaceAll("[^\\d.]", "")) * 1000);
+                //System.out.println("RAM : " + server.getMemory() + " TO MB : " + ram);
 
-            final var host = createHost(server.getCpu(), mips, ram, ServersSpecification.BANDWIDTH, ServersSpecification.STORAGE);
-            hostList.add(host);
+                final var host = createHost(server.getCpu(), mips, ram, ServersSpecification.BANDWIDTH, ServersSpecification.STORAGE);
+                hostList.add(host);
+            }
         }
 
         // uses a VmAllocationPolicySimple by default to allocate VMs
