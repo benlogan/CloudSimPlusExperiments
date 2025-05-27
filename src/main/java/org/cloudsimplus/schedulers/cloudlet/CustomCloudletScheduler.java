@@ -6,6 +6,9 @@ import org.cloudsimplus.vms.Vm;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * using space shared - there will only be 1 cloudlet per VM
+ */
 public class CustomCloudletScheduler extends CloudletSchedulerSpaceShared {
 //public class CustomCloudletScheduler extends CloudletSchedulerTimeShared {
 
@@ -97,17 +100,18 @@ public class CustomCloudletScheduler extends CloudletSchedulerSpaceShared {
 
         int cloudletId = (int) cle.getCloudlet().getId();
         int numberOfVcpus = (int) customVm.getPesNumber();
-        double totalVmMips = customVm.getMips();
+        //double totalVmMips = customVm.getMips();
 
         // Get active cloudlets
-        int activeCloudlets = getCloudletExecList().size();
-        double mipsPerCloudlet = totalVmMips / Math.max(1, activeCloudlets);
+        //int activeCloudlets = getCloudletExecList().size();
+        //double mipsPerCloudlet = totalVmMips / Math.max(1, activeCloudlets);
 
         // Track MIPS usage on each vCPU for each cloudlet
         for (int i = 0; i < numberOfVcpus; i++) {
                 //customVm.trackCloudletMipsUsage(i, cloudletId, cle.getRemainingCloudletLength()); // doesn't work when cloudlet length hasn't been specified
                 // FIXME but we should perhaps use that method when we are dealing with fixed length cloudlets?
-                customVm.trackCloudletMipsUsage(i, cloudletId, (cle.getCloudlet().getFinishedLengthSoFar() / numberOfVcpus));
+                //customVm.trackCloudletMipsUsage(i, cloudletId, (cle.getCloudlet().getFinishedLengthSoFar() / numberOfVcpus));
+                customVm.trackCloudletMipsUsage(i, cloudletId, cle.getCloudlet().getFinishedLengthSoFar()); // it's MIPS per core, so this doesn't need dividing!
                 /*
                 if(cloudletId == 0) {
                     System.out.println("Time: " + currentTime + " | Cloudlet " + cloudletId + " is running on vCPU " + i + " with " + mipsPerCloudlet + " MIPS. getRemainingCloudletLength : " + cle.getRemainingCloudletLength());

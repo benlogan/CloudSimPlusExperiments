@@ -13,9 +13,10 @@ public class CloudletSimpleFixed extends CloudletSimple {
     public long getTotalLength() {
         // critical fix - should be using the assigned vm cores - not the number for the cloudlet
 
-        // if space scheduler - will only run on one VM/Core
+        // if space scheduler - will only run on one VM (but should still use all cores)
         if(this.getVm().getCloudletScheduler() instanceof CloudletSchedulerSpaceShared) {
-            return getLength();
+            //return getLength();
+            return getLength() * getVm().getPesNumber();
         } else { // else if time scheduler, work will be split/shared and will, effectively, multiply!
             return getLength() * getVm().getPesNumber();
         }

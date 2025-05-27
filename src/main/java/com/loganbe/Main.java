@@ -48,8 +48,8 @@ public class Main {
 
     private BigInteger totalAccumulatedMips;
 
-    private SimSpecFromFileLegacy simSpec = new SimSpecFromFileLegacy("data/infra_templates/big_company.yaml");
-    //private SimSpecFromFile simSpec = new SimSpecFromFile("data/infra_templates/example.yaml");
+    //private SimSpecFromFileLegacy simSpec = new SimSpecFromFileLegacy("data/infra_templates/big_company.yaml");
+    private SimSpecFromFile simSpec = new SimSpecFromFile("data/infra_templates/example.yaml");
 
     private int simCount = 1;
     private Map<Integer, Double> energyMap = new HashMap();
@@ -184,11 +184,11 @@ public class Main {
 
             if (SimSpecInterfaceHomogenous.class.isAssignableFrom(simSpec.getClass())) {
                 LOGGER.warn("Using the legacy template!");
-                totalWorkExpected = simSpec.getHostSpecification().getHost_mips() * simSpec.getHostSpecification().getHosts() * SimulationConfig.DURATION; // legacy approach (homogenous)
+                totalWorkExpected = simSpec.getHostSpecification().getHost_mips() * simSpec.getHostSpecification().getHost_pes() * simSpec.getHostSpecification().getHosts() * SimulationConfig.DURATION; // legacy approach (homogenous)
             } else {
                 totalWorkExpected = 0;
                 for (ServersSpecification server : simSpec.getServerSpecifications()) {
-                    int mips = ServersSpecification.calculateMips(server.getSpeed());
+                    int mips = ServersSpecification.calculateMips(server.getSpeed()) * server.getCpu();
                     totalWorkExpected += mips;
                 }
                 totalWorkExpected = totalWorkExpected * SimulationConfig.DURATION;
@@ -197,7 +197,7 @@ public class Main {
         }
 
         LOGGER.info("Total Work Expected " + totalWorkExpected + " MIPS");
-        LOGGER.info("Total Work Completed " + totalAccumulatedMips + " MIPS"); // per core?
+        LOGGER.info("Total Work Completed " + totalAccumulatedMips + " MIPS");
         //LOGGER.info("Total Work Completed " + (totalAccumulatedMips.multiply(BigInteger.valueOf(simSpec.HOSTS).multiply(BigInteger.valueOf(simSpec.HOST_PES)))) + " MIPS");
 
         BigInteger actualAccumulatedMips = new BigInteger(String.valueOf(0)); // TOTAL length, across ALL cores
@@ -234,14 +234,8 @@ public class Main {
 
         List<CustomVm> vmList = broker.getVmCreatedList();
 
-        //printCloudletExecutionStats(vmList);
-        //printVcpuExecutionStats(vmList);
-
-        // these tables are very confusing and fundamentally wrong!
-        // the current version implies that cloudlet 0 runs exclusively at first, but only on host 0 and vm 0
-        // then we start on cloudlet 1 on host 1, on vm 1
-        // none of this is right. surely cloudlet 0 is actually being broken up and running on all cores simultaneously
-        // and the cloudlet view probably needs fixing to show multiple entries per row where appropriate
+        printCloudletExecutionStats(vmList);
+        printVcpuExecutionStats(vmList);
 
         double totalEnergy = new Power().calculateHostsCpuUtilizationAndEnergyConsumption(hostList, actualAccumulatedMips);
         energyMap.put(simCount, totalEnergy);

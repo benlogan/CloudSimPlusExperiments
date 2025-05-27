@@ -91,42 +91,47 @@ public class Power {
     public static double calculateHostsCpuUtilizationAndEnergyConsumption(List<Host> hostList, BigInteger workDone) {
         System.out.println("\nPhysical Host - CPU Utilisation Stats");
         for (Host host : hostList) {
-            // FIXME - if I do need to access the scheduler here (to access custom utilisation logic)
-            // then we need to access it via the host/vm relationship
-            // I think this would need to be refactored entirely, now that we are correctly using a new instance of the scheduler for each VM
-            //host.getVmList().get(0).getCloudletScheduler()
             printHostCpuUtilizationAndPowerConsumption(host);
         }
+
+        System.out.println("\nPhysical Host - CPU Utilisation Stats (accurate)");
+        for (Host host : hostList) {
+            printHostCpuUtilizationAndPowerConsumptionFixed(host);
+        }
+        
         System.out.println();
         return calculateTotalEnergy(hostList, workDone);
     }
 
     /**
-     * WARNING this is showing physical host to be 100% utilised when space sharing
-     * this is definitely not the case - this is not a reliable measure of utilisation
+     * WARNING this is not always showing physical host to be 100% utilised when space sharing
+     * this may not be a reliable measure of utilisation
      * this is not suitable for use in energy calculations
-     * has been corrected to not use the framework utilisation stats
-     * it's not quite that bad - it can be used, but it is based more on allocation
-     * (which can, in some situations, differ from actual usage)
+     * it can be used, but it is based more on allocation
+     * which can, in some situations, differ from actual usage
      *
      * @param host
      */
     public static void printHostCpuUtilizationAndPowerConsumption(Host host) {
-        // framework method (OLD)
+        // framework/default method - for some unknown reason, no longer reliable when using the new mixed hardware template!
         HostResourceStats cpuStats = host.getCpuUtilizationStats();
         final double utilizationPercentMean = cpuStats.getMean();
         final double watts = host.getPowerModel().getPower(utilizationPercentMean);
+
         System.out.printf(
                 "Host %2d CPU Usage mean: %6.1f%% | Power Consumption mean: %8.0fW%n",
                 host.getId(), utilizationPercentMean * 100, watts);
+    }
 
-        // new custom method
-        /*
-        PowerServer ps = wattsPerServer(scheduler, host);
+    public static void printHostCpuUtilizationAndPowerConsumptionFixed(Host host) {
+        // custom method
+        PowerServer ps = wattsPerServer(host);
+        final double utilizationPercentMean = ps.getUtilizationPercentMean();
+        final double watts = ps.getWatts();
+
         System.out.printf(
                 "Host %2d CPU Usage mean: %6.1f%% | Power Consumption mean: %8.0fW%n",
-                host.getId(), ps.getUtilizationPercentMean() * 100, ps.getWatts());
-         */
+                host.getId(), utilizationPercentMean * 100, watts);
     }
 
     public static double calculateTotalEnergy(List<Host> hostList, BigInteger workDone) {
@@ -177,8 +182,13 @@ public class Power {
         return totalEnergy;
     }
 
-    public static PowerServer wattsPerServer(CustomCloudletScheduler scheduler, Host host) {
-        double elapsedTime = scheduler.getHostElapsedTime(host.getId());
+    public static PowerServer wattsPerServer(Host host) {
+        //CustomCloudletScheduler cs = (CustomCloudletScheduler) host.getVmList().get(0).getCloudletScheduler();
+        //double elapsedTime = cs.getHostElapsedTime(host.getId());
+        // above won't work, presumably because the VM has been torn down
+
+        double elapsedTime = host.getTotalExecutionTime();
+
         double endTime = host.getDatacenter().getSimulation().clock();
         final double utilizationPercentMean = elapsedTime / endTime;
         final double watts = host.getPowerModel().getPower(utilizationPercentMean);
