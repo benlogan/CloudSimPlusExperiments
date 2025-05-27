@@ -184,11 +184,13 @@ public class Main {
 
             if (SimSpecInterfaceHomogenous.class.isAssignableFrom(simSpec.getClass())) {
                 LOGGER.warn("Using the legacy template!");
-                totalWorkExpected = simSpec.getHostSpecification().getHost_mips() * simSpec.getHostSpecification().getHost_pes() * simSpec.getHostSpecification().getHosts() * SimulationConfig.DURATION; // legacy approach (homogenous)
+                //totalWorkExpected = simSpec.getHostSpecification().getHost_mips() * simSpec.getHostSpecification().getHost_pes() * simSpec.getHostSpecification().getHosts() * SimulationConfig.DURATION; // legacy approach (homogenous)
+                // critical fix - not theoretical max, but rather how many cores did you ask to use!
+                totalWorkExpected = simSpec.getHostSpecification().getHost_mips() * simSpec.getHostSpecification().getHosts() * simSpec.getCloudletSpecification().getCloudlet_pes() * SimulationConfig.DURATION; // legacy approach (homogenous)
             } else {
                 totalWorkExpected = 0;
                 for (ServersSpecification server : simSpec.getServerSpecifications()) {
-                    int mips = ServersSpecification.calculateMips(server.getSpeed()) * server.getCpu();
+                    int mips = ServersSpecification.calculateMips(server.getSpeed()) * simSpec.getCloudletSpecification().getCloudlet_pes(); // how many do you choose to use, not how many cores are there (server.getCpu())
                     totalWorkExpected += mips;
                 }
                 totalWorkExpected = totalWorkExpected * SimulationConfig.DURATION;

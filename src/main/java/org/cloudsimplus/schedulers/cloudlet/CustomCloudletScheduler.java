@@ -99,7 +99,8 @@ public class CustomCloudletScheduler extends CloudletSchedulerSpaceShared {
         CustomVm customVm = (CustomVm) vm;
 
         int cloudletId = (int) cle.getCloudlet().getId();
-        int numberOfVcpus = (int) customVm.getPesNumber();
+        //int numberOfVcpus = (int) customVm.getPesNumber(); // NOT how many cores do we have, but rather how many are we choosing to use!
+        int numberOfVcpus = (int) cle.getCloudlet().getPesNumber(); // NOT how many cores do we have, but rather how many are we choosing to use!
         //double totalVmMips = customVm.getMips();
 
         // Get active cloudlets

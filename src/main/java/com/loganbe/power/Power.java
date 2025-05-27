@@ -94,11 +94,12 @@ public class Power {
             printHostCpuUtilizationAndPowerConsumption(host);
         }
 
+        /*
         System.out.println("\nPhysical Host - CPU Utilisation Stats (accurate)");
         for (Host host : hostList) {
             printHostCpuUtilizationAndPowerConsumptionFixed(host);
-        }
-        
+        }*/
+
         System.out.println();
         return calculateTotalEnergy(hostList, workDone);
     }
