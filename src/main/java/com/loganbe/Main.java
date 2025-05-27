@@ -590,9 +590,14 @@ public class Main {
         UtilizationModelDynamic utilizationModelMemory = new UtilizationModelDynamic(0.25); // 25% RAM
 
         for (int i = 0; i < simSpec.getCloudletSpecification().getCloudlets(); i++) {
-            final var cloudlet = new CloudletSimpleFixed(simSpec.getCloudletSpecification().getCloudlet_length(), simSpec.getCloudletSpecification().getCloudlet_pes(), utilizationModel);
+            int cloudletPes = simSpec.getCloudletSpecification().getCloudlet_pes();
+            if(cloudletPes == -1) { // use all available cores!
+                cloudletPes = (int) vmList.get(i).getPesNumber();
+            }
 
-            // one core each but only 25% of the available memory (and bandwidth), to enable parallel execution
+            final var cloudlet = new CloudletSimpleFixed(simSpec.getCloudletSpecification().getCloudlet_length(), cloudletPes, utilizationModel);
+
+            // e.g. one core each but only 25% of the available memory (and bandwidth), to enable parallel execution
             cloudlet.setUtilizationModelRam(utilizationModelMemory);
             cloudlet.setUtilizationModelBw(utilizationModelMemory);
 
