@@ -35,6 +35,8 @@ import org.slf4j.LoggerFactory;
 import java.math.BigInteger;
 import java.util.*;
 
+import static com.loganbe.SimulationConfig.ACCEPTABLE_WORKLOAD_ERROR;
+
 public class Main {
 
     private CloudSimPlus simulation;
@@ -60,9 +62,8 @@ public class Main {
         main.runSimulation(null);
 
         // multiple sim runs...
-        main.runSimulation(new InterventionSuite());
-
-        main.printEnergy();
+        //main.runSimulation(new InterventionSuite());
+        //main.printEnergy();
     }
 
     // FIXME need a results object for sim executions and a comparator function
@@ -195,8 +196,6 @@ public class Main {
             // FIXME - not accounting for interventions! Not a major issue, just ignore the warning
         }
 
-        //BigInteger totalSubmittedMips = BigInteger.valueOf(simSpec.CLOUDLETS)
-        //        .multiply(BigInteger.valueOf(simSpec.CLOUDLET_TOTAL_WORK));
         LOGGER.info("Total Work Expected " + totalWorkExpected + " MIPS");
         LOGGER.info("Total Work Completed " + totalAccumulatedMips + " MIPS"); // per core?
         //LOGGER.info("Total Work Completed " + (totalAccumulatedMips.multiply(BigInteger.valueOf(simSpec.HOSTS).multiply(BigInteger.valueOf(simSpec.HOST_PES)))) + " MIPS");
@@ -209,19 +208,11 @@ public class Main {
 
         calculateWorkDelta(totalWorkExpected, actualAccumulatedMips);
 
-        if(SimulationConfig.DURATION == -1) { // don't bother calculating this, unless it's a fixed time frame simulation
-            //double expectedCompletionTimeS = (simSpec.SIM_TOTAL_WORK / (simSpec.HOST_PES * simSpec.HOST_MIPS)); // doesn't matter how many cores the host has, we can only use 1 host at a time (with space scheduler)
-            //double expectedCompletionTimeS = (totalWorkExpected / (simSpec.getHostSpecification().getHosts() * simSpec.getHostSpecification().getHost_mips()));
-            double expectedCompletionTimeS = 0; // FIXME breaking this for now, to get the heterogeneous hardware working
-            LOGGER.info("Expected Completion Time " + (expectedCompletionTimeS / 60 / 60) + "hr(s)");
-            LOGGER.info("Actual Completion Time " + simulation.clockInHours() + "hr(s)");
-            if ((simulation.clock() - expectedCompletionTimeS) > 100) { // less than a small tolerance for error
-                LOGGER.error("Gap in expected completion time (assuming full utilisation) = " + (simulation.clock() - expectedCompletionTimeS) + "s");
-            }
+        if(SimulationConfig.DURATION == -1) { // don't bother calculating this - usually using a fixed time frame
+            calculateTimeDelta(totalWorkExpected);
         }
 
-        //final var cloudletFinishedList = broker.getCloudletFinishedList();
-        final var cloudletFinishedList = broker.getCloudletCreatedList();
+        final var cloudletFinishedList = broker.getCloudletCreatedList(); // safer than getCloudletFinishedList
         //new CloudletsTableBuilder(cloudletFinishedList).build();
         new CloudletsTableBuilderExtended(cloudletFinishedList).build();
         //new CloudletsTableBuilder(cloudletFinishedList, new HtmlTable()).build();
@@ -290,13 +281,25 @@ public class Main {
         // convert to double for percentage calculation
         double deltaPercentage = delta.doubleValue() / totalWorkExpected * 100;
 
-        if(deltaWork > 0 && deltaPercentage > 1) {
+        if(deltaWork > 0 && deltaPercentage > ACCEPTABLE_WORKLOAD_ERROR) {
             LOGGER.warn("Unfinished MIPS = " + deltaWork + " (" + deltaPercentage + "%)");
-        } else if(deltaWork < 0 && deltaPercentage > 1) {
+        } else if(deltaWork < 0 && deltaPercentage > ACCEPTABLE_WORKLOAD_ERROR) {
             LOGGER.warn("Excess MIPS = " + Math.abs(deltaWork) + " (" + deltaPercentage + "%)");
         }
 
         return deltaPercentage;
+    }
+
+    public double calculateTimeDelta(int totalWorkExpected) {
+        //double expectedCompletionTimeS = (simSpec.SIM_TOTAL_WORK / (simSpec.HOST_PES * simSpec.HOST_MIPS)); // doesn't matter how many cores the host has, we can only use 1 host at a time (with space scheduler)
+        double expectedCompletionTimeS = (totalWorkExpected / (simSpec.getHostSpecification().getHosts() * simSpec.getHostSpecification().getHost_mips()));
+        LOGGER.debug("Expected Completion Time " + (expectedCompletionTimeS / 60 / 60) + "hr(s)");
+        LOGGER.debug("Actual Completion Time " + simulation.clockInHours() + "hr(s)");
+        double timeDelta = simulation.clock() - expectedCompletionTimeS;
+        if (timeDelta > 100) { // a small tolerance for error
+            LOGGER.warn("Gap in expected completion time (assuming full utilisation) = " + timeDelta + "s");
+        }
+        return timeDelta;
     }
 
     /**
