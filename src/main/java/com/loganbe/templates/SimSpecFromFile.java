@@ -63,4 +63,7 @@ public class SimSpecFromFile implements SimSpecInterface {
         return cloudletSpecification;
     }
 
+    public HostSpecification getHostSpecification() {
+        return null; // FIXME will never be used, just to enable compilation when trying to dual run old & new template
+    }
 }
