@@ -33,6 +33,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.math.BigInteger;
+import java.text.SimpleDateFormat;
 import java.util.*;
 
 import static com.loganbe.SimulationConfig.ACCEPTABLE_WORKLOAD_ERROR;
@@ -224,7 +225,9 @@ public class Main {
         TableBuilderAbstract tableBuilder = new CloudletsTableBuilder(cloudletFinishedList, new ExportCsvTable());
         ExportCsvTable table = (ExportCsvTable) tableBuilder.getTable();
         tableBuilder.build();
-        //Utilities.writeCsv(table.getCsvString(), "data/sim_data_" + new Date().getTime() + ".csv");
+        SimpleDateFormat formatter = new SimpleDateFormat("dd_MM_yyyy_HH:mm:ss");
+        String friendlyDate = formatter.format(new Date());
+        Utilities.writeCsv(table.getCsvString(), "data/sim_data_" + friendlyDate + ".csv");
 
         // new table showing activity in each core
         //System.out.println(broker.getVmCreatedList().get(0).getHost().getPeList().get(0).getStatus().toString());
