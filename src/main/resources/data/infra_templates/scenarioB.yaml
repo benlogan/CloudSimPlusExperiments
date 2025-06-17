@@ -1,0 +1,23 @@
+# this is the legacy template format that we've been using to specify simulation infra
+hostSpecification:
+  hosts: 100
+  host_pes: 16
+  host_mips: 1000
+  host_ram: 2048
+  host_bw: 10_000
+  host_storage: 1_000_000
+
+vmSpecification:
+  vms: 100
+  vm_pes: 16
+  vm_mips: 1000
+  vm_ram: 2048
+  vm_bw: 1000
+  vm_storage: 10_000
+
+cloudletSpecification:
+  cloudlets: 100
+  cloudlet_pes: 16
+  cloudlet_utilisation: 1
+  cloudlet_length: -1
+  sim_total_work: -1

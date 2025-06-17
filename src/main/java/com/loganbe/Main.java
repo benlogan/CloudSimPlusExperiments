@@ -50,7 +50,8 @@ public class Main {
     private BigInteger totalAccumulatedMips;
 
     //private SimSpecFromFileLegacy simSpec = new SimSpecFromFileLegacy("data/infra_templates/big_company.yaml");
-    private SimSpecFromFile simSpec = new SimSpecFromFile("data/infra_templates/example.yaml");
+    private SimSpecFromFileLegacy simSpec = new SimSpecFromFileLegacy("data/infra_templates/scenarioC.yaml");
+    //private SimSpecFromFile simSpec = new SimSpecFromFile("data/infra_templates/example.yaml");
 
     private int simCount = 1;
     private Map<Integer, Double> energyMap = new HashMap();
@@ -59,8 +60,13 @@ public class Main {
     public static final Logger LOGGER = LoggerFactory.getLogger(Main.class.getSimpleName());
 
     public static void main(String[] args) {
+        long currentTime = System.currentTimeMillis();
+
         Main main = new Main();
         main.runSimulation(null);
+
+        currentTime = System.currentTimeMillis() - currentTime;
+        System.out.println("Simulation Elapsed Time (real world) = " + currentTime/1000 + "s");
 
         // multiple sim runs...
         //main.runSimulation(new InterventionSuite());
