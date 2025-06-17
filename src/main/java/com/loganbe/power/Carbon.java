@@ -19,6 +19,10 @@ public class Carbon {
     // carbon intensity (gCO₂/kWh)
     private double carbonIntensity = 160; // UK average
 
+    private static double CARBON_INTENSITY_CLEAN = 40.5;
+    private static double CARBON_INTENSITY_MIXED = 214;
+    private static double CARBON_INTENSITY_DIRTY = 499.5;
+
     /**
      * convert energy (power over time) to carbon (emitted)
      * in kg
@@ -29,6 +33,7 @@ public class Carbon {
         //double carbonG = energy * carbonIntensity;
 
         double carbonG = energy * liveCarbonIntensity();
+        //double carbonG = energy * CARBON_INTENSITY_DIRTY;
 
         return new BigDecimal(carbonG/1000).setScale(2, RoundingMode.HALF_UP).doubleValue();
         //return carbonG/1000;
