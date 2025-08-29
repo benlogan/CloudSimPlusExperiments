@@ -16,7 +16,11 @@ public class SimSpecFromFileLegacy implements SimSpecInterfaceHomogenous {
 
     private LegacyTemplate legacyTemplate;
 
+    private String filename;
+
     public SimSpecFromFileLegacy(String filename) {
+        this.filename = filename;
+
         LoaderOptions loaderOptions = new LoaderOptions();
 
         Yaml yaml = new Yaml(new Constructor(LegacyTemplate.class, loaderOptions));
@@ -56,5 +60,9 @@ public class SimSpecFromFileLegacy implements SimSpecInterfaceHomogenous {
 
     public List<ServersSpecification> getServerSpecifications() {
         return null;
+    }
+
+    public String getFilename() {
+        return filename;
     }
 }

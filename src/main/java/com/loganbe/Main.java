@@ -32,6 +32,7 @@ import org.cloudsimplus.vms.Vm;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.math.BigInteger;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -50,7 +51,7 @@ public class Main {
     private BigInteger totalAccumulatedMips;
 
     //private SimSpecFromFileLegacy simSpec = new SimSpecFromFileLegacy("data/infra_templates/big_company.yaml");
-    private SimSpecFromFileLegacy simSpec = new SimSpecFromFileLegacy("data/infra_templates/scenarioC.yaml");
+    private SimSpecFromFileLegacy simSpec = new SimSpecFromFileLegacy("data/infra_templates/scenarioB.yaml");
     //private SimSpecFromFile simSpec = new SimSpecFromFile("data/infra_templates/example.yaml");
 
     private int simCount = 1;
@@ -93,6 +94,8 @@ public class Main {
         /*Enables just some level of log messages.
           Make sure to import org.cloudsimplus.util.Log;*/
         Log.setLevel(ch.qos.logback.classic.Level.INFO); // THERE IS NO DEBUG LOGGING (AND ONLY MINIMAL TRACE)!
+
+        LOGGER.info("Using Simulation Configuration File : file://" + new File(simSpec.getFilename()).getAbsolutePath()); // use of file:// here is simply to make the link clickable in console
 
         simulation = new CloudSimPlus(0.01); // trying to ensure all events are processed, without any misses
 
@@ -243,10 +246,10 @@ public class Main {
         // then we can see exactly how work is being distributed
         // useful because the usual table doesn't tell us what is going on in each core (so this complements the cloudlet view/table)
 
-        List<CustomVm> vmList = broker.getVmCreatedList();
+        //List<CustomVm> vmList = broker.getVmCreatedList();
 
-        printCloudletExecutionStats(vmList);
-        printVcpuExecutionStats(vmList);
+        //printCloudletExecutionStatsPerVcpu(vmList);
+        //printCloudletExecutionStatsPerVcpuTabular(vmList);
 
         double totalEnergy = new Power().calculateHostsCpuUtilizationAndEnergyConsumption(hostList, actualAccumulatedMips);
         energyMap.put(simCount, totalEnergy);
@@ -333,8 +336,15 @@ public class Main {
         }
     }
 
-    // after simulation completes, print MIPS and percentages
-    public void printCloudletExecutionStats(List<CustomVm> vmList) {
+    // after simulation completes,
+
+    /**
+     * prints cloudlet execution MIPS and percentages, per VCPU
+     * e.g.
+     * Cloudlet 0 ran on VM 0 on vCPU 0 for 3428191.0 MIPS, which is 6.25% of total execution.
+     * @param vmList
+     */
+    public void printCloudletExecutionStatsPerVcpu(List<CustomVm> vmList) {
         for(CustomVm vm : vmList) {
             Map<Integer, Map<Integer, Double>> vcpuMipsUsageMap = vm.getVcpuMipsConsumedMap();
 
@@ -379,7 +389,15 @@ public class Main {
         }
     }
 
-    public void printVcpuExecutionStats(List<CustomVm> vmList) {
+    /**
+     * very similar to printCloudletExecutionStatsPerVcpu
+     * same data, just in tabular format, e.g.
+     * | VM ID      | vCPU Index | Cloudlet ID | MIPS Used    | Execution % |
+     * ----------------------------------------------------------------------
+     * | 0          | 0          | 0           | 3428191.00   | 6.25        |
+     * @param vmList
+     */
+    public void printCloudletExecutionStatsPerVcpuTabular(List<CustomVm> vmList) {
         // display header
         System.out.println("----------------------------------------------------------------------");
         System.out.println(String.format("| %-10s | %-10s | %-11s | %-12s | %-11s |", "VM ID", "vCPU Index", "Cloudlet ID", "MIPS Used", "Execution %"));

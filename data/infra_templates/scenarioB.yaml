@@ -1,4 +1,9 @@
 # this is the legacy template format that we've been using to specify simulation infra
+
+# this is basically 1 VM per host and 1 cloudlet per host/vm. 100 hosts and 100 cloudlets, so everything running in parallel
+
+# workload length is -1, so all run continuously until they are interrupted on the 1 hour mark
+
 hostSpecification:
   hosts: 100
   host_pes: 16
