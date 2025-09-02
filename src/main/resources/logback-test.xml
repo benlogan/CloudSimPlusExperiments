@@ -1,0 +1,30 @@
+<configuration>
+    <!-- forcing overriding of any cloudsimplus log configuration, by using logback-test.xml, rather than logback.xml
+    IMPORTANT NOTE - cloudsimplus doesn't use actual classnames/paths for logger names, so this, for example, won't work;
+    <logger name="org.cloudsimplus" level="WARN" />
+    or even
+    <logger name="org.cloudsimplus.brokers.DatacenterBrokerAbstract" level="WARN" />
+    you MUST use the simple names, as below
+    -->
+
+    <!-- keep own logs at INFO -->
+    <logger name="com.loganbe" level="INFO" />
+
+    <!-- quiet down CloudSim logs -->
+    <logger name="Datacenter" level="WARN"/>
+    <logger name="DatacenterBroker" level="WARN"/>
+    <logger name="Host" level="WARN"/>
+    <logger name="Vm" level="WARN"/>
+    <logger name="VmAllocationPolicy" level="WARN"/>
+
+    <!-- Root logger (fallback) -->
+    <root level="WARN">
+        <appender-ref ref="STDOUT" />
+    </root>
+
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+</configuration>
