@@ -3,18 +3,19 @@ package org.cloudsimplus.hosts;
 import org.cloudsimplus.provisioners.ResourceProvisioner;
 import org.cloudsimplus.resources.HarddriveStorage;
 import org.cloudsimplus.resources.Pe;
-import org.cloudsimplus.resources.Resource;
 import org.cloudsimplus.vms.HostResourceStatsNew;
-import org.cloudsimplus.vms.Vm;
 
 import java.util.List;
 
 /**
  * A Host class extension to fix a critical bug with CPU utilisation reporting
- *
+ * and introduce embodied emissions for the physical hardware
  * @author Ben Logan
  */
 public class HostSimpleFixed extends HostSimple {
+
+    // FIXME - move to config later
+    public double embodiedEmissions = 900_000; // accepted average (g - to match SCI)
 
     public HostSimpleFixed(List<Pe> peList) {
         super(peList);

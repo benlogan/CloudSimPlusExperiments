@@ -1,9 +1,9 @@
 package com.loganbe.power;
 
 import org.cloudsimplus.hosts.Host;
+import org.cloudsimplus.hosts.HostSimpleFixed;
 import org.cloudsimplus.power.models.PowerModel;
 import org.cloudsimplus.power.models.PowerModelHostSimple;
-import org.cloudsimplus.schedulers.cloudlet.CustomCloudletScheduler;
 import org.cloudsimplus.schedulers.cloudlet.CustomVm;
 import org.cloudsimplus.vms.HostResourceStats;
 import org.cloudsimplus.vms.Vm;
@@ -139,6 +139,7 @@ public class Power {
         double totalPower = 0;
         double totalEnergy = 0;
         double upTimeHours = 0;
+        double embodiedTotal = 0;
         for (final Host host : hostList) {
             // framework method (OLD)
             final HostResourceStats cpuStats = host.getCpuUtilizationStats();
@@ -161,6 +162,9 @@ public class Power {
             double energy = ps.getWatts() * upTimeHours;
             totalEnergy += energy;
             */
+
+            HostSimpleFixed hsf = (HostSimpleFixed) host;
+            embodiedTotal += hsf.embodiedEmissions;
         }
         DecimalFormat df = new DecimalFormat("#");
 
@@ -175,7 +179,14 @@ public class Power {
         BigDecimal bd = BigDecimal.valueOf(totalEnergy / workDone.doubleValue());
         System.out.println("Average Energy Efficiency (energy per unit of work) : " + bd.toPlainString() + "Wh/MI");
 
-        System.out.println("Total Compute Carbon = " + new Carbon().energyToCarbon(totalEnergy/1000) + "kg");
+        System.out.println("Total Compute Carbon = " + new Carbon().energyToCarbon(totalEnergy/1000) + "kgCO₂e");
+
+        double operational = new Carbon().energyToCarbon(totalEnergy);
+        //System.out.println("Operation Emissions = " + operational + "gCO₂e");
+
+        BigInteger rate = workDone; // let's use the unit of work - its perfect for this (work done)
+        double sci = new Sci().calculateSci(operational, embodiedTotal, rate.doubleValue());
+        System.out.println("SCI = " + String.format("%.4f", sci) + "gCO₂e / MI");
 
         System.out.println("DC Overhead Energy = " + df1.format(new Pue().incrementalEnergyOverhead(totalEnergy)/1000) + "kWh");
 
