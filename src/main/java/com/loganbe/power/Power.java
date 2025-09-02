@@ -186,7 +186,7 @@ public class Power {
 
         BigInteger rate = workDone; // let's use the unit of work - its perfect for this (work done)
         double sci = new Sci().calculateSci(operational, embodiedTotal, rate.doubleValue());
-        System.out.println("SCI = " + String.format("%.4f", sci) + "gCO₂e / MI");
+        System.out.println("SCI = " + String.format("%.4f", sci) + "mgCO₂e / MI");
 
         System.out.println("DC Overhead Energy = " + df1.format(new Pue().incrementalEnergyOverhead(totalEnergy)/1000) + "kWh");
 
