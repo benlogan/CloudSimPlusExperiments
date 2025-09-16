@@ -129,15 +129,18 @@ public class Main {
 
         // create a list of cloudlets (cloud applications), using the abstraction model;
 
-        //ApplicationModel app = new BatchApp(100,((57_600_000 / 16)-50000));
-        // length needs to be the theoretical max processing capacity (57_600_000)
-        // divided by number of cores (because each will contribute a share of total)
-        // and then slightly smaller to ensure they all have time to finish
-        // otherwise you end up with nothing finishing and zero work done!
-
-        ApplicationModel app = new WebApp(10000,10);
-        // 1000 every 1 second results in too many cloudlets to log easily!
-        // 500 every 1 second is roughly 50% capacity
+        ApplicationModel app;
+        if(simSpec.getApplicationType().equals("WEB")) {
+            app = new WebApp(simSpec.getWebAppSpecification().getRequest_length(), simSpec.getWebAppSpecification().getArrival_interval());
+        } else if(simSpec.getApplicationType().equals("BATCH")) {
+            app = new BatchApp(100,((57_600_000 / 16)-50000));
+            // length needs to be the theoretical max processing capacity (57_600_000)
+            // divided by number of cores (because each will contribute a share of total)
+            // and then slightly smaller to ensure they all have time to finish
+            // otherwise you end up with nothing finishing and zero work done!
+        } else {
+            app = null;
+        }
 
         cloudletList = app.generateInitialWorkload(vmList);
         // using the new cloudlet abstraction code under application.*

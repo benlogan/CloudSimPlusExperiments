@@ -58,6 +58,9 @@ public class SimSpecFromFileLegacy implements SimSpecInterfaceHomogenous {
         return legacyTemplate.getCloudletSpecification();
     }
 
+    @Override
+    public WebAppSpecification getWebAppSpecification() { return legacyTemplate.getWebAppSpecification();}
+
     public List<ServersSpecification> getServerSpecifications() {
         return null;
     }
@@ -65,4 +68,9 @@ public class SimSpecFromFileLegacy implements SimSpecInterfaceHomogenous {
     public String getFilename() {
         return filename;
     }
+
+    public String getApplicationType() {
+        return legacyTemplate.getApplicationType();
+    }
+
 }

@@ -32,4 +32,7 @@ public class SimSpecBigCompanyUnlimited implements SimSpecInterfaceHomogenous {
         return new CloudletSpecification();
     }
 
+    @Override
+    public WebAppSpecification getWebAppSpecification() { return new WebAppSpecification(); }
+
 }

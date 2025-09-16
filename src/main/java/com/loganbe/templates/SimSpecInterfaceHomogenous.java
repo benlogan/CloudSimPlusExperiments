@@ -17,4 +17,6 @@ public interface SimSpecInterfaceHomogenous {
 
     CloudletSpecification getCloudletSpecification();
 
+    WebAppSpecification getWebAppSpecification();
+
 }

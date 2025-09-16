@@ -1,15 +1,19 @@
 package com.loganbe.templates;
 
 /**
- * the, now legacy, file template
+ * legacy file template
  */
 public class LegacyTemplate {
+
+    private String applicationType;
 
     private HostSpecification hostSpecification;
 
     private VmSpecification vmSpecification;
 
     private CloudletSpecification cloudletSpecification;
+
+    private WebAppSpecification webAppSpecification;
 
     public VmSpecification getVmSpecification() {
         return vmSpecification;
@@ -35,4 +39,19 @@ public class LegacyTemplate {
         this.cloudletSpecification = cloudletSpecification;
     }
 
+    public String getApplicationType() {
+        return applicationType;
+    }
+
+    public void setApplicationType(String applicationType) {
+        this.applicationType = applicationType;
+    }
+
+    public WebAppSpecification getWebAppSpecification() {
+        return webAppSpecification;
+    }
+
+    public void setWebAppSpecification(WebAppSpecification webAppSpecification) {
+        this.webAppSpecification = webAppSpecification;
+    }
 }

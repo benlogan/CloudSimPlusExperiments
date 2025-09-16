@@ -20,9 +20,19 @@ vmSpecification:
   vm_bw: 1000
   vm_storage: 10_000
 
+# now entirely redundant
 cloudletSpecification:
   cloudlets: 100
   cloudlet_pes: 16
   cloudlet_utilisation: 1
   cloudlet_length: -1
   sim_total_work: -1
+
+applicationType: WEB
+
+webAppSpecification:
+  request_length: 10_000
+  arrival_interval: 10
+  # 1000 every 1 second results in too many cloudlets to log easily!
+  # 500 every 1 second is roughly 50% capacity
+  # needs an end time!?
