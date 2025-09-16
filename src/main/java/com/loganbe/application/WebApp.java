@@ -32,7 +32,7 @@ public class WebApp implements ApplicationModel {
     public List<Cloudlet> generateWorkloadAtTime(double currentTime, List<Vm> vmList) {
         List<Cloudlet> list = new ArrayList<>();
 
-        // if we've passed the next arrival time, generate a new request
+        // if we've passed the next arrival time, generate a new request (per VM)
         if (currentTime >= nextArrivalTime) {
             for (Vm vm : vmList) {
                 Cloudlet cloudlet = new CloudletSimpleFixed(requestLength, (int) vm.getPesNumber(), new UtilizationModelFull());
