@@ -6,6 +6,7 @@ import org.cloudsimplus.hosts.Host;
 import org.cloudsimplus.power.models.PowerModelHostSimple;
 
 /**
+ * a physical server requires less power
  * half the servers, use half their normal power. should reduce overall energy consumption by 25%
  * (not including DC overhead etc)
  * compute is unchanged - same amount of work done
