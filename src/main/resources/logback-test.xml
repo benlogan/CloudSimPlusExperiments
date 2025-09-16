@@ -11,6 +11,7 @@
     <logger name="com.loganbe" level="INFO" />
 
     <!-- quiet down CloudSim logs -->
+    <logger name="CloudSim" level="WARN"/>
     <logger name="Datacenter" level="WARN"/>
     <logger name="DatacenterBroker" level="WARN"/>
     <logger name="Host" level="WARN"/>
