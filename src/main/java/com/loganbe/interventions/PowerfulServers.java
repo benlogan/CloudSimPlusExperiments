@@ -9,7 +9,9 @@ import org.cloudsimplus.vms.Vm;
 /**
  * a physical server uses the same amount of energy, but gets more work done
  * some of the servers have double the processing capacity (host & VM)
- * note - this will get more work done, but it won't change the energy usage
+ * note - this may get more work done, but it won't necessarily change the energy usage
+ *      batch app - won't change the amount of work done, but it will be quicker
+ *      web app - won't change the amount of work done (significantly), but it will use less energy
  */
 public class PowerfulServers {
 
