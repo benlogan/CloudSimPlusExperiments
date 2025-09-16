@@ -8,6 +8,7 @@ import org.cloudsimplus.power.models.PowerModelHostSimple;
 /**
  * half the servers, use half their normal power. should reduce overall energy consumption by 25%
  * (not including DC overhead etc)
+ * compute is unchanged - same amount of work done
  */
 public class EfficientServers {
 

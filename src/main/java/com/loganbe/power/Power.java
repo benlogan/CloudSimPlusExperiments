@@ -89,10 +89,13 @@ public class Power {
      * {@code vm.getUtilizationHistory().enable()}.
      */
     public static double calculateHostsCpuUtilizationAndEnergyConsumption(List<Host> hostList, BigInteger workDone) {
+        /*
+        // quite noisy logging!
         System.out.println("\nPhysical Host - CPU Utilisation Stats");
         for (Host host : hostList) {
             printHostCpuUtilizationAndPowerConsumption(host);
         }
+        */
 
         /*
         System.out.println("\nPhysical Host - CPU Utilisation Stats (accurate)");
