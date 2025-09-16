@@ -53,6 +53,7 @@ public class Main {
     private int simCount = 1; // how many discrete simulations have completed, NOT how many you want to run
     private Map<Integer, Double> energyMap = new HashMap();
     private Map<Integer, Double> workMap = new HashMap();
+    private Map<Integer, List<Double>> chartMap = new HashMap();
 
     public static final Logger LOGGER = LoggerFactory.getLogger(Main.class.getSimpleName());
 
@@ -84,6 +85,16 @@ public class Main {
         double workDifference = workMap.get(2) - workMap.get(1);
         System.out.printf("Work Delta (boost), when applying interventions during a 2nd sim run : %.2f MIPS (or %.2f %% more work done)\n",
                 workDifference, (workDifference / workMap.get(1))*100);
+
+        // new charting friendly output (web app)
+        System.out.println("--------------CHARTING------------->");
+        for(int i = 1; i < simCount; i++) {
+            for (Double n : chartMap.get(i)) {
+                System.out.print(n + "\t");  // tab between numbers (for easy copy into Excel)
+            }
+            System.out.println();
+        }
+        System.out.println("<-------------CHARTING--------------");
     }
 
     private void runSimulation(InterventionSuite interventions) {
@@ -276,9 +287,17 @@ public class Main {
         //printCloudletExecutionStatsPerVcpu(vmList);
         //printCloudletExecutionStatsPerVcpuTabular(vmList);
 
-        double totalEnergy = new Power().calculateHostsCpuUtilizationAndEnergyConsumption(hostList, actualAccumulatedMips);
+        Power power = new Power();
+        double totalEnergy = power.calculateHostsCpuUtilizationAndEnergyConsumption(hostList, actualAccumulatedMips);
         energyMap.put(simCount, totalEnergy);
         workMap.put(simCount, actualAccumulatedMips.doubleValue());
+
+        List<Double> chartResults = new ArrayList<>();
+        chartResults.add(totalEnergy);
+        chartResults.add(actualAccumulatedMips.doubleValue());
+        chartResults.add(power.sci);
+        chartMap.put(simCount, chartResults);
+
         //printCustomUtilisation(vmList, hostList);
         //new Power().printVmsCpuUtilizationAndPowerConsumption(vmList);
 

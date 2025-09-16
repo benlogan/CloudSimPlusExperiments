@@ -9,8 +9,8 @@ import com.loganbe.Main;
 public class InterventionSuite {
 
     public void applyInterventions(Main simulation) {
-        //new EfficientServers(simulation);
-        new PowerfulServers(simulation);
+        new EfficientServers(simulation);
+        //new PowerfulServers(simulation);
     }
 
 }

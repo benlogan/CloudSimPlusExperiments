@@ -31,6 +31,8 @@ public class Power {
     // Host power consumption (in Watts) during shutdown
     public static final double HOST_SHUT_DOWN_POWER = 3;
 
+    public static double sci;
+
     /**
      * Prints the following information from VM's utilization stats:
      * <ul>
@@ -188,7 +190,7 @@ public class Power {
         //System.out.println("Operation Emissions = " + operational + "gCO₂e");
 
         BigInteger rate = workDone; // let's use the unit of work - its perfect for this (work done)
-        double sci = new Sci().calculateSci(operational, embodiedTotal, rate.doubleValue());
+        sci = new Sci().calculateSci(operational, embodiedTotal, rate.doubleValue());
         System.out.println("SCI = " + String.format("%.4f", sci) + "mgCO₂e / MI");
 
         System.out.println("DC Overhead Energy = " + df1.format(new Pue().incrementalEnergyOverhead(totalEnergy)/1000) + "kWh");
