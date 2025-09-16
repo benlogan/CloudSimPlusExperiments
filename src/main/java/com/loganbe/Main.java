@@ -217,23 +217,21 @@ public class Main {
 
         // simulation complete - calculate work done...
 
-        long totalWorkExpected;// = simSpec.getCloudletSpecification().getSim_total_work();
-        //if(simSpec.getCloudletSpecification().getCloudlet_length() == -1) {
-            // work expected is a function of how long we run the simulation for (not pre-determined)
+        long totalWorkExpected;
+        // work expected is a function of how long we run the simulation for (not pre-determined)
 
-            if (SimSpecInterfaceHomogenous.class.isAssignableFrom(simSpec.getClass())) { // legacy template
-                // important - not theoretical max (simSpec.getHostSpecification().getHost_pes()), but rather how many cores did you ask to use!
-                totalWorkExpected = 1L * simSpec.getHostSpecification().getHost_mips() * simSpec.getHostSpecification().getHosts() * simSpec.getCloudletSpecification().getCloudlet_pes() * SimulationConfig.DURATION; // legacy approach (homogenous)
-            } else {
-                totalWorkExpected = 0;
-                for (ServersSpecification server : simSpec.getServerSpecifications()) {
-                    int mips = ServersSpecification.calculateMips(server.getSpeed()) * simSpec.getCloudletSpecification().getCloudlet_pes(); // how many do you choose to use, not how many cores are there (server.getCpu())
-                    totalWorkExpected += mips;
-                }
-                totalWorkExpected = totalWorkExpected * SimulationConfig.DURATION;
+        if (SimSpecInterfaceHomogenous.class.isAssignableFrom(simSpec.getClass())) { // legacy template
+            // important - not theoretical max (simSpec.getHostSpecification().getHost_pes()), but rather how many cores did you ask to use!
+            totalWorkExpected = 1L * simSpec.getHostSpecification().getHost_mips() * simSpec.getHostSpecification().getHosts() * simSpec.getCloudletSpecification().getCloudlet_pes() * SimulationConfig.DURATION; // legacy approach (homogenous)
+        } else {
+            totalWorkExpected = 0;
+            for (ServersSpecification server : simSpec.getServerSpecifications()) {
+                int mips = ServersSpecification.calculateMips(server.getSpeed()) * simSpec.getCloudletSpecification().getCloudlet_pes(); // how many do you choose to use, not how many cores are there (server.getCpu())
+                totalWorkExpected += mips;
             }
-            // FIXME - not accounting for interventions! Not a major issue, just ignore the warning
-        //}
+            totalWorkExpected = totalWorkExpected * SimulationConfig.DURATION;
+        }
+        // FIXME - not accounting for interventions! Not a major issue, just ignore the warning...
         LOGGER.info("Total Work Expected " + totalWorkExpected + " MIPS");
 
         // this is based on completing cloudlets incrementing a work completed counter, using the cloudlet length, from the cloudlet specification

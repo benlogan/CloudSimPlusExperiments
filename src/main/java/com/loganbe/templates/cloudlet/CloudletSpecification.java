@@ -11,7 +11,6 @@ public class CloudletSpecification {
 
     // -1 = unlimited - keep the work coming!
     private int cloudlet_length;            // any negative number means run continuously (throughput is then determined by VM capacity)
-    private int sim_total_work;
 
     public int getCloudlet_pes() {
         return cloudlet_pes;
@@ -35,14 +34,6 @@ public class CloudletSpecification {
 
     public void setCloudlet_length(int cloudlet_length) {
         this.cloudlet_length = cloudlet_length;
-    }
-
-    public int getSim_total_work() {
-        return sim_total_work;
-    }
-
-    public void setSim_total_work(int sim_total_work) {
-        this.sim_total_work = sim_total_work;
     }
 
 }
