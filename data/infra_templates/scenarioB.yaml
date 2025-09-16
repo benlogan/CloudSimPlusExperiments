@@ -28,11 +28,22 @@ cloudletSpecification:
   cloudlet_length: -1
   sim_total_work: -1
 
-applicationType: WEB
+# WEB or BATCH, determines which spec to pick up below
+applicationType: BATCH
 
 webAppSpecification:
-  request_length: 10_000
+  cloudlet_length: 10_000
   arrival_interval: 10
   # 1000 every 1 second results in too many cloudlets to log easily!
   # 500 every 1 second is roughly 50% capacity
+  # implied (in code) - 1 cloudlet per VM
   # needs an end time!?
+
+batchAppSpecification:
+  # length needs to be the theoretical max processing capacity (57_600_000)
+  # divided by number of cores (because each will contribute a share of total)
+  # and then slightly smaller to ensure they all have time to finish
+  # otherwise you end up with nothing finishing and zero work done!
+  # ((57_600_000 / 16)-50000)
+  cloudlet_length: 3_550_000
+  cloudlet_count: 100

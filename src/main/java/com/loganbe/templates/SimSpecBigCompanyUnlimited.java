@@ -1,5 +1,8 @@
 package com.loganbe.templates;
 
+import com.loganbe.templates.cloudlet.BatchAppSpecification;
+import com.loganbe.templates.cloudlet.CloudletSpecification;
+import com.loganbe.templates.cloudlet.WebAppSpecification;
 import org.cloudsimplus.schedulers.cloudlet.CloudletScheduler;
 import org.cloudsimplus.schedulers.cloudlet.CustomCloudletScheduler;
 
@@ -34,5 +37,8 @@ public class SimSpecBigCompanyUnlimited implements SimSpecInterfaceHomogenous {
 
     @Override
     public WebAppSpecification getWebAppSpecification() { return new WebAppSpecification(); }
+
+    @Override
+    public BatchAppSpecification getBatchAppSpecification() { return new BatchAppSpecification(); }
 
 }

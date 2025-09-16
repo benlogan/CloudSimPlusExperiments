@@ -1,4 +1,4 @@
-package com.loganbe.templates;
+package com.loganbe.templates.cloudlet;
 
 /**
  * object representing cloudlet configuration details (loaded from file)

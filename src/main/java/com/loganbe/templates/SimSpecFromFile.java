@@ -1,5 +1,6 @@
 package com.loganbe.templates;
 
+import com.loganbe.templates.cloudlet.CloudletSpecification;
 import org.cloudsimplus.schedulers.cloudlet.CloudletScheduler;
 import org.cloudsimplus.schedulers.cloudlet.CustomCloudletScheduler;
 import org.yaml.snakeyaml.LoaderOptions;
@@ -7,7 +8,6 @@ import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.Constructor;
 
 import java.io.InputStream;
-import java.util.ArrayList;
 import java.util.List;
 
 /**

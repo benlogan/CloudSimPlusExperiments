@@ -1,5 +1,6 @@
 package com.loganbe.templates;
 
+import com.loganbe.templates.cloudlet.CloudletSpecification;
 import org.cloudsimplus.schedulers.cloudlet.CloudletScheduler;
 
 import java.util.List;

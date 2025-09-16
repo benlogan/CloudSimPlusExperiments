@@ -1,5 +1,7 @@
 package com.loganbe.templates;
 
+import com.loganbe.templates.cloudlet.CloudletSpecification;
+
 import java.util.List;
 
 /**

@@ -1,5 +1,9 @@
 package com.loganbe.templates;
 
+import com.loganbe.templates.cloudlet.BatchAppSpecification;
+import com.loganbe.templates.cloudlet.CloudletSpecification;
+import com.loganbe.templates.cloudlet.WebAppSpecification;
+
 /**
  * legacy file template
  */
@@ -14,6 +18,8 @@ public class LegacyTemplate {
     private CloudletSpecification cloudletSpecification;
 
     private WebAppSpecification webAppSpecification;
+
+    private BatchAppSpecification batchAppSpecification;
 
     public VmSpecification getVmSpecification() {
         return vmSpecification;
@@ -53,5 +59,13 @@ public class LegacyTemplate {
 
     public void setWebAppSpecification(WebAppSpecification webAppSpecification) {
         this.webAppSpecification = webAppSpecification;
+    }
+
+    public BatchAppSpecification getBatchAppSpecification() {
+        return batchAppSpecification;
+    }
+
+    public void setBatchAppSpecification(BatchAppSpecification batchAppSpecification) {
+        this.batchAppSpecification = batchAppSpecification;
     }
 }

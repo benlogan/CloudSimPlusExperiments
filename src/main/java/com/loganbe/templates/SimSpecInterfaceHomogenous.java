@@ -1,8 +1,9 @@
 package com.loganbe.templates;
 
+import com.loganbe.templates.cloudlet.BatchAppSpecification;
+import com.loganbe.templates.cloudlet.CloudletSpecification;
+import com.loganbe.templates.cloudlet.WebAppSpecification;
 import org.cloudsimplus.schedulers.cloudlet.CloudletScheduler;
-
-import java.util.List;
 
 /**
  * legacy spec (assumes hardware is homogenous)
@@ -18,5 +19,7 @@ public interface SimSpecInterfaceHomogenous {
     CloudletSpecification getCloudletSpecification();
 
     WebAppSpecification getWebAppSpecification();
+
+    BatchAppSpecification getBatchAppSpecification();
 
 }

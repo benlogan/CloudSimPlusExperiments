@@ -1,5 +1,8 @@
 package com.loganbe.templates;
 
+import com.loganbe.templates.cloudlet.BatchAppSpecification;
+import com.loganbe.templates.cloudlet.CloudletSpecification;
+import com.loganbe.templates.cloudlet.WebAppSpecification;
 import org.cloudsimplus.schedulers.cloudlet.CloudletScheduler;
 import org.cloudsimplus.schedulers.cloudlet.CustomCloudletScheduler;
 import org.yaml.snakeyaml.LoaderOptions;
@@ -60,6 +63,9 @@ public class SimSpecFromFileLegacy implements SimSpecInterfaceHomogenous {
 
     @Override
     public WebAppSpecification getWebAppSpecification() { return legacyTemplate.getWebAppSpecification();}
+
+    @Override
+    public BatchAppSpecification getBatchAppSpecification() { return legacyTemplate.getBatchAppSpecification();}
 
     public List<ServersSpecification> getServerSpecifications() {
         return null;
