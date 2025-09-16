@@ -6,19 +6,19 @@ import org.cloudsimplus.utilizationmodels.UtilizationModelDynamic;
 import org.cloudsimplus.utilizationmodels.UtilizationModelFull;
 import org.cloudsimplus.vms.Vm;
 
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-public class WebApp implements ApplicationModel {
+public class WebApp extends AbstractAppModel {
 
-    private final long requestLength;
     private final double arrivalInterval; // e.g. 1.0 = 1 request/sec
 
     private double nextArrivalTime;
 
-    public WebApp(long requestLength, double arrivalInterval) {
-        this.requestLength = requestLength;
+    public WebApp(long cloudletLength, double arrivalInterval) {
+        this.cloudletLength = cloudletLength;
         this.arrivalInterval = arrivalInterval;
         this.nextArrivalTime = 0.0; // first request at t=0
     }
@@ -35,7 +35,7 @@ public class WebApp implements ApplicationModel {
         // if we've passed the next arrival time, generate a new request (per VM)
         if (currentTime >= nextArrivalTime) {
             for (Vm vm : vmList) {
-                Cloudlet cloudlet = new CloudletSimpleFixed(requestLength, (int) vm.getPesNumber(), new UtilizationModelFull());
+                Cloudlet cloudlet = new CloudletSimpleFixed(cloudletLength, (int) vm.getPesNumber(), new UtilizationModelFull());
 
                 final var utilizationModel = new UtilizationModelDynamic(1);
                 UtilizationModelDynamic utilizationModelMemory = new UtilizationModelDynamic(0.25); // 25% RAM
@@ -44,6 +44,11 @@ public class WebApp implements ApplicationModel {
                 cloudlet.setUtilizationModelBw(utilizationModelMemory);
 
                 cloudlet.setVm(vm);
+
+                cloudlet.addOnFinishListener(event -> {
+                    totalAccumulatedMips = totalAccumulatedMips.add(BigInteger.valueOf(event.getCloudlet().getTotalLength()));
+                });
+
                 list.add(cloudlet);
             }
 

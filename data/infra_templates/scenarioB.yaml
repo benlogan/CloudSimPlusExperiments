@@ -24,15 +24,15 @@ vmSpecification:
 # the number of cloudlets will generally match the available hardware (for parallel processing)
 cloudletSpecification:
   cloudlet_pes: 16
-  #cloudlet_length: 10_000     # WEB
-  cloudlet_length: 3_550_000  # BATCH
+  cloudlet_length: 10_000     # WEB
+  #cloudlet_length: 3_550_000  # BATCH
   #cloudlet_length: -1  # this approach is no longer used
   #sim_total_work: -1   # this approach is no longer used (we can always work it out)
   #cloudlets: 100       # this approach is no longer used (now determined by app type)
 #  cloudlet_utilisation: 1
 
 # WEB or BATCH, determines which spec to pick up below
-applicationType: BATCH
+applicationType: WEB
 
 webAppSpecification:
   arrival_interval: 10

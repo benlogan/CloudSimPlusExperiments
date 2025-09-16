@@ -1,6 +1,6 @@
 package com.loganbe;
 
-import com.loganbe.application.ApplicationModel;
+import com.loganbe.application.AbstractAppModel;
 import com.loganbe.application.BatchApp;
 import com.loganbe.application.WebApp;
 import com.loganbe.interventions.InterventionSuite;
@@ -8,6 +8,7 @@ import com.loganbe.power.Power;
 import com.loganbe.templates.ServersSpecification;
 import com.loganbe.templates.SimSpecFromFileLegacy;
 import com.loganbe.templates.SimSpecInterfaceHomogenous;
+import com.loganbe.utilities.Utilities;
 import org.cloudsimplus.allocationpolicies.VmAllocationPolicyRoundRobin;
 import org.cloudsimplus.brokers.DatacenterBroker;
 import org.cloudsimplus.brokers.DatacenterBrokerSimple;
@@ -44,9 +45,6 @@ public class Main {
     public List<Vm> vmList;
     private List<Cloudlet> cloudletList;
     private Datacenter datacenter;
-
-    // WORKINGHERE - BROKEN/REMOVE
-    private BigInteger totalAccumulatedMips;
 
     //private SimSpecFromFileLegacy simSpec = new SimSpecFromFileLegacy("data/infra_templates/big_company.yaml");
     private SimSpecFromFileLegacy simSpec = new SimSpecFromFileLegacy("data/infra_templates/scenarioB.yaml");
@@ -97,9 +95,6 @@ public class Main {
 
         simulation = new CloudSimPlus(0.01); // trying to ensure all events are processed, without any misses
 
-        // whenever a cloudlet completes, we will add to this number (must be reset for each sim run!)
-        totalAccumulatedMips = BigInteger.valueOf(0);
-
         if(SimulationConfig.DURATION > 0) {
             simulation.terminateAt(SimulationConfig.DURATION);
         }
@@ -124,7 +119,7 @@ public class Main {
 
         // create a list of cloudlets (cloud applications), using the abstraction model;
 
-        ApplicationModel app;
+        AbstractAppModel app;
         LOGGER.info("App Type : " + simSpec.getApplicationType());
         if(simSpec.getApplicationType().equals("WEB")) {
             app = new WebApp(simSpec.getCloudletSpecification().getCloudlet_length(), simSpec.getWebAppSpecification().getArrival_interval());
@@ -235,10 +230,7 @@ public class Main {
         LOGGER.info("Total Work Expected " + totalWorkExpected + " MIPS");
 
         // this is based on completing cloudlets incrementing a work completed counter, using the cloudlet length, from the cloudlet specification
-        // broken! FIXME - because the length in cloudlet specification cfg file is zero (or -1)
-        // if we move the new abstraction config from code, into the cloudlet spec, that should fix it! can be safely ignored
-        LOGGER.info("Total Work Completed " + totalAccumulatedMips + " MIPS");
-        //LOGGER.info("Total Work Completed " + (totalAccumulatedMips.multiply(BigInteger.valueOf(simSpec.HOSTS).multiply(BigInteger.valueOf(simSpec.HOST_PES)))) + " MIPS");
+        LOGGER.info("Total Work Completed " + app.totalAccumulatedMips + " MIPS");
 
         // this is based on the actual completed cloudlet length (not expected or specified), so should be closer to the truth!
         BigInteger actualAccumulatedMips = new BigInteger(String.valueOf(0)); // TOTAL length, across ALL cores
