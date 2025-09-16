@@ -1,5 +1,8 @@
 package com.loganbe;
 
+import com.loganbe.application.ApplicationModel;
+import com.loganbe.application.BatchApp;
+import com.loganbe.application.WebApp;
 import com.loganbe.interventions.InterventionSuite;
 import com.loganbe.power.Power;
 import com.loganbe.templates.ServersSpecification;
@@ -121,7 +124,27 @@ public class Main {
         } else {
             vmList = createVmsFromHost();
         }
-        cloudletList = createCloudlets();
+
+        //cloudletList = createCloudlets(); // old/simple method (legacy approach, pre app abstraction model)
+
+        // create a list of cloudlets (cloud applications), using the abstraction model;
+
+        //ApplicationModel app = new BatchApp(100,((57_600_000 / 16)-50000));
+        // length needs to be the theoretical max processing capacity (57_600_000)
+        // divided by number of cores (because each will contribute a share of total)
+        // and then slightly smaller to ensure they all have time to finish
+        // otherwise you end up with nothing finishing and zero work done!
+
+        ApplicationModel app = new WebApp(10000,10);
+        // 1000 every 1 second results in too many cloudlets to log easily!
+        // 500 every 1 second is roughly 50% capacity
+
+        cloudletList = app.generateInitialWorkload(vmList);
+        // using the new cloudlet abstraction code under application.*
+        // new code is quite different - it's lots of small cloudlets running sequentially (and periodically)
+        // old code is one big (never ending) cloudlet (need to refresh memory on how that's implemented, but its definitely one cloudlet)
+        // results won't be exactly the same - there will be gaps etc with the new approach
+        // remember that later you need to periodically add new cloudlets (in the webapp scenario) - you start with nothing!
 
         broker.submitVmList(vmList);
         broker.submitCloudletList(cloudletList);
@@ -173,6 +196,15 @@ public class Main {
             }
         });*/
 
+        // periodically check for new workload (e.g. for web apps, additional cloudlets are added during sim execution)
+        simulation.addOnClockTickListener(evt -> {
+            double time = simulation.clock();
+            List<Cloudlet> newCloudlets = app.generateWorkloadAtTime(time, vmList);
+            if (!newCloudlets.isEmpty()) {
+                broker.submitCloudletList(newCloudlets);
+            }
+        });
+
         //simulation.terminateAt(10000); // won't make any difference if you have unfinished cloudlets! (because the events have probably already been processed)
 
         // immediately before we start the sim, apply any interventions;
@@ -188,15 +220,15 @@ public class Main {
 
         LOGGER.info("Simulation End Time " + simulation.clockInHours() + "h or " + simulation.clockInMinutes() + "m");
 
-        int totalWorkExpected = simSpec.getCloudletSpecification().getSim_total_work();
-        if(simSpec.getCloudletSpecification().getCloudlet_length() == -1) {
-            // overwrite it - it's a function of how long we run the simulation for (not pre-determined)
+        // simulation complete - calculate work done...
 
-            if (SimSpecInterfaceHomogenous.class.isAssignableFrom(simSpec.getClass())) {
-                LOGGER.warn("Using the legacy template!");
-                //totalWorkExpected = simSpec.getHostSpecification().getHost_mips() * simSpec.getHostSpecification().getHost_pes() * simSpec.getHostSpecification().getHosts() * SimulationConfig.DURATION; // legacy approach (homogenous)
-                // critical fix - not theoretical max, but rather how many cores did you ask to use!
-                totalWorkExpected = simSpec.getHostSpecification().getHost_mips() * simSpec.getHostSpecification().getHosts() * simSpec.getCloudletSpecification().getCloudlet_pes() * SimulationConfig.DURATION; // legacy approach (homogenous)
+        long totalWorkExpected = simSpec.getCloudletSpecification().getSim_total_work();
+        if(simSpec.getCloudletSpecification().getCloudlet_length() == -1) {
+            // work expected is a function of how long we run the simulation for (not pre-determined)
+
+            if (SimSpecInterfaceHomogenous.class.isAssignableFrom(simSpec.getClass())) { // legacy template
+                // important - not theoretical max (simSpec.getHostSpecification().getHost_pes()), but rather how many cores did you ask to use!
+                totalWorkExpected = 1L * simSpec.getHostSpecification().getHost_mips() * simSpec.getHostSpecification().getHosts() * simSpec.getCloudletSpecification().getCloudlet_pes() * SimulationConfig.DURATION; // legacy approach (homogenous)
             } else {
                 totalWorkExpected = 0;
                 for (ServersSpecification server : simSpec.getServerSpecifications()) {
@@ -207,11 +239,15 @@ public class Main {
             }
             // FIXME - not accounting for interventions! Not a major issue, just ignore the warning
         }
-
         LOGGER.info("Total Work Expected " + totalWorkExpected + " MIPS");
+
+        // this is based on completing cloudlets incrementing a work completed counter, using the cloudlet length, from the cloudlet specification
+        // broken! FIXME - because the length in cloudlet specification cfg file is zero (or -1)
+        // if we move the new abstraction config from code, into the cloudlet spec, that should fix it! can be safely ignored
         LOGGER.info("Total Work Completed " + totalAccumulatedMips + " MIPS");
         //LOGGER.info("Total Work Completed " + (totalAccumulatedMips.multiply(BigInteger.valueOf(simSpec.HOSTS).multiply(BigInteger.valueOf(simSpec.HOST_PES)))) + " MIPS");
 
+        // this is based on the actual completed cloudlet length (not expected or specified), so should be closer to the truth!
         BigInteger actualAccumulatedMips = new BigInteger(String.valueOf(0)); // TOTAL length, across ALL cores
         for (Cloudlet cloudlet : broker.getCloudletFinishedList()) {
             actualAccumulatedMips = actualAccumulatedMips.add(BigInteger.valueOf(cloudlet.getTotalLength()));
@@ -224,13 +260,17 @@ public class Main {
             calculateTimeDelta(totalWorkExpected);
         }
 
-        final var cloudletFinishedList = broker.getCloudletCreatedList(); // safer than getCloudletFinishedList
-        //new CloudletsTableBuilder(cloudletFinishedList).build();
-        new CloudletsTableBuilderExtended(cloudletFinishedList).build();
-        //new CloudletsTableBuilder(cloudletFinishedList, new HtmlTable()).build();
-        //new CloudletsTableBuilder(cloudletFinishedList, new CsvTable()).build(); // replaced below
+        // process / output / visualise results...
 
-        // output as csv for easy charting (new custom table type, to fetch csv as string)
+        final var cloudletFinishedList = broker.getCloudletCreatedList(); // safer than getCloudletFinishedList
+
+        // results table to stdout
+        new CloudletsTableBuilderExtended(cloudletFinishedList).build(); // customised version with fixes/enhancements
+
+        //new CloudletsTableBuilder(cloudletFinishedList, new HtmlTable()).build();
+        //new CloudletsTableBuilder(cloudletFinishedList, new CsvTable()).build(); // replaced/extended below
+
+        // results table to csv, for easy charting (new custom table type, to fetch csv as string)
         TableBuilderAbstract tableBuilder = new CloudletsTableBuilder(cloudletFinishedList, new ExportCsvTable());
         ExportCsvTable table = (ExportCsvTable) tableBuilder.getTable();
         tableBuilder.build();
@@ -276,7 +316,7 @@ public class Main {
      * @param actualAccumulatedMips
      * @return
      */
-    public double calculateWorkDelta(int totalWorkExpected, BigInteger actualAccumulatedMips) {
+    public double calculateWorkDelta(long totalWorkExpected, BigInteger actualAccumulatedMips) {
         // acceptable error - 5 minute(s) of processing time (<5%)
         // long acceptableError = simSpec.getHostSpecification().getHost_mips() * simSpec.getHostSpecification().getHosts() * (5 * 60);
         // moving to pure percentage based approach (+ support for heterogeneous hardware)
@@ -298,7 +338,7 @@ public class Main {
         return deltaPercentage;
     }
 
-    public double calculateTimeDelta(int totalWorkExpected) {
+    public double calculateTimeDelta(long totalWorkExpected) {
         //double expectedCompletionTimeS = (simSpec.SIM_TOTAL_WORK / (simSpec.HOST_PES * simSpec.HOST_MIPS)); // doesn't matter how many cores the host has, we can only use 1 host at a time (with space scheduler)
         double expectedCompletionTimeS = (totalWorkExpected / (simSpec.getHostSpecification().getHosts() * simSpec.getHostSpecification().getHost_mips()));
         LOGGER.debug("Expected Completion Time " + (expectedCompletionTimeS / 60 / 60) + "hr(s)");
