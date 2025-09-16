@@ -12,18 +12,18 @@ import java.util.List;
 public class BatchApp implements ApplicationModel {
 
     private final int cloudletCount;
-    private final long length;
+    private final long cloudletLength;
 
-    public BatchApp(int cloudletCount, long length) {
+    public BatchApp(long cloudletLength, int cloudletCount) {
+        this.cloudletLength = cloudletLength;
         this.cloudletCount = cloudletCount;
-        this.length = length;
     }
 
     @Override
     public List<Cloudlet> generateInitialWorkload(List<Vm> vmList) {
         List<Cloudlet> list = new ArrayList<>();
         for (int i = 0; i < cloudletCount; i++) {
-            Cloudlet cloudlet = new CloudletSimpleFixed(length, (int) vmList.get(i).getPesNumber(), new UtilizationModelFull());
+            Cloudlet cloudlet = new CloudletSimpleFixed(cloudletLength, (int) vmList.get(i).getPesNumber(), new UtilizationModelFull());
             cloudlet.setVm(vmList.get(i));
             list.add(cloudlet);
         }

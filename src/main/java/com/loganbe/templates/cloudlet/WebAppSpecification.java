@@ -5,17 +5,7 @@ package com.loganbe.templates.cloudlet;
  */
 public class WebAppSpecification {
 
-    private int cloudlet_length;
-
     private int arrival_interval;
-
-    public int getCloudlet_length() {
-        return cloudlet_length;
-    }
-
-    public void setCloudlet_length(int cloudlet_length) {
-        this.cloudlet_length = cloudlet_length;
-    }
 
     public int getArrival_interval() {
         return arrival_interval;

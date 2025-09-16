@@ -5,17 +5,7 @@ package com.loganbe.templates.cloudlet;
  */
 public class BatchAppSpecification {
 
-    private int cloudlet_length;
-
     private int cloudlet_count;
-
-    public int getCloudlet_length() {
-        return cloudlet_length;
-    }
-
-    public void setCloudlet_length(int cloudlet_length) {
-        this.cloudlet_length = cloudlet_length;
-    }
 
     public int getCloudlet_count() { return cloudlet_count; }
 

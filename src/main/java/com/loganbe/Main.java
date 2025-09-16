@@ -6,19 +6,15 @@ import com.loganbe.application.WebApp;
 import com.loganbe.interventions.InterventionSuite;
 import com.loganbe.power.Power;
 import com.loganbe.templates.ServersSpecification;
-import com.loganbe.templates.SimSpecFromFile;
 import com.loganbe.templates.SimSpecFromFileLegacy;
 import com.loganbe.templates.SimSpecInterfaceHomogenous;
-import org.cloudsimplus.allocationpolicies.VmAllocationPolicy;
 import org.cloudsimplus.allocationpolicies.VmAllocationPolicyRoundRobin;
-import org.cloudsimplus.allocationpolicies.VmAllocationPolicySimple;
 import org.cloudsimplus.brokers.DatacenterBroker;
 import org.cloudsimplus.brokers.DatacenterBrokerSimple;
 import org.cloudsimplus.builders.tables.CloudletsTableBuilder;
 import org.cloudsimplus.builders.tables.CloudletsTableBuilderExtended;
 import org.cloudsimplus.builders.tables.TableBuilderAbstract;
 import org.cloudsimplus.cloudlets.Cloudlet;
-import org.cloudsimplus.cloudlets.CloudletSimpleFixed;
 import org.cloudsimplus.core.CloudSimPlus;
 import org.cloudsimplus.datacenters.Datacenter;
 import org.cloudsimplus.hosts.Host;
@@ -28,9 +24,7 @@ import org.cloudsimplus.resources.Pe;
 import org.cloudsimplus.resources.PeSimple;
 import org.cloudsimplus.schedulers.cloudlet.CustomCloudletScheduler;
 import org.cloudsimplus.schedulers.cloudlet.CustomVm;
-import org.cloudsimplus.schedulers.vm.VmScheduler;
 import org.cloudsimplus.util.Log;
-import org.cloudsimplus.utilizationmodels.UtilizationModelDynamic;
 import org.cloudsimplus.vms.Vm;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,6 +45,7 @@ public class Main {
     private List<Cloudlet> cloudletList;
     private Datacenter datacenter;
 
+    // WORKINGHERE - BROKEN/REMOVE
     private BigInteger totalAccumulatedMips;
 
     //private SimSpecFromFileLegacy simSpec = new SimSpecFromFileLegacy("data/infra_templates/big_company.yaml");
@@ -125,16 +120,16 @@ public class Main {
             vmList = createVmsFromHost();
         }
 
-        //cloudletList = createCloudlets(); // old/simple method (legacy approach, pre app abstraction model)
+        //cloudletList = CloudletHelper.createCloudlets(simSpec, simSpec.getCloudletSpecification().getCloudlets(), vmList); // old/simple method (legacy approach, pre app abstraction model)
 
         // create a list of cloudlets (cloud applications), using the abstraction model;
 
         ApplicationModel app;
         LOGGER.info("App Type : " + simSpec.getApplicationType());
         if(simSpec.getApplicationType().equals("WEB")) {
-            app = new WebApp(simSpec.getWebAppSpecification().getCloudlet_length(), simSpec.getWebAppSpecification().getArrival_interval());
+            app = new WebApp(simSpec.getCloudletSpecification().getCloudlet_length(), simSpec.getWebAppSpecification().getArrival_interval());
         } else if(simSpec.getApplicationType().equals("BATCH")) {
-            app = new BatchApp(simSpec.getBatchAppSpecification().getCloudlet_count(),simSpec.getBatchAppSpecification().getCloudlet_length());
+            app = new BatchApp(simSpec.getCloudletSpecification().getCloudlet_length(), simSpec.getBatchAppSpecification().getCloudlet_count());
         } else {
             app = null;
         }
@@ -222,8 +217,8 @@ public class Main {
 
         // simulation complete - calculate work done...
 
-        long totalWorkExpected = simSpec.getCloudletSpecification().getSim_total_work();
-        if(simSpec.getCloudletSpecification().getCloudlet_length() == -1) {
+        long totalWorkExpected;// = simSpec.getCloudletSpecification().getSim_total_work();
+        //if(simSpec.getCloudletSpecification().getCloudlet_length() == -1) {
             // work expected is a function of how long we run the simulation for (not pre-determined)
 
             if (SimSpecInterfaceHomogenous.class.isAssignableFrom(simSpec.getClass())) { // legacy template
@@ -238,7 +233,7 @@ public class Main {
                 totalWorkExpected = totalWorkExpected * SimulationConfig.DURATION;
             }
             // FIXME - not accounting for interventions! Not a major issue, just ignore the warning
-        }
+        //}
         LOGGER.info("Total Work Expected " + totalWorkExpected + " MIPS");
 
         // this is based on completing cloudlets incrementing a work completed counter, using the cloudlet length, from the cloudlet specification
@@ -644,111 +639,4 @@ public class Main {
         return vmList;
     }
 
-    // creates a list of Cloudlets (cloud applications)
-    private List<Cloudlet> createCloudlets() {
-        LOGGER.info("Creating " + simSpec.getCloudletSpecification().getCloudlets() + " Cloudlets");
-        final var cloudletList = new ArrayList<Cloudlet>(simSpec.getCloudletSpecification().getCloudlets());
-
-        // utilizationModel defining the Cloudlets use X% of any resource all the time
-
-        final var utilizationModel = new UtilizationModelDynamic(simSpec.getCloudletSpecification().getCloudlet_utilisation());
-        //final var utilizationModel = new UtilizationModelFull(); // not making a difference!
-
-        UtilizationModelDynamic utilizationModelMemory = new UtilizationModelDynamic(0.25); // 25% RAM
-
-        for (int i = 0; i < simSpec.getCloudletSpecification().getCloudlets(); i++) {
-            int cloudletPes = simSpec.getCloudletSpecification().getCloudlet_pes();
-            if(cloudletPes == -1) { // use all available cores!
-                cloudletPes = (int) vmList.get(i).getPesNumber();
-            }
-
-            final var cloudlet = new CloudletSimpleFixed(simSpec.getCloudletSpecification().getCloudlet_length(), cloudletPes, utilizationModel);
-
-            // e.g. one core each but only 25% of the available memory (and bandwidth), to enable parallel execution
-            cloudlet.setUtilizationModelRam(utilizationModelMemory);
-            cloudlet.setUtilizationModelBw(utilizationModelMemory);
-
-            // if a cloudlet finishes, assume it might have created capacity in the system for more processing!
-            // shouldn't be necessary if you use a scheduler that supports queuing/waiting
-
-            /*
-            cloudlet.addOnStartListener(event -> {
-                LOGGER.trace("CLOUDLET START : " + event.getCloudlet().getId() + " time = " + event.getTime());
-                for(Host host : hostList) {
-                    LOGGER.trace("CPU UTILISATION (START). HOST : " + host.getId() + " UTILISATION : " + host.getCpuPercentUtilization());
-                }
-            });*/
-
-            cloudlet.addOnFinishListener(event -> {
-                /*
-                LOGGER.trace("CLOUDLET END : " + event.getCloudlet().getId() + " time = " + event.getTime());
-                for(Host host : hostList) {
-                    LOGGER.trace("CPU UTILISATION (END). HOST : " + host.getId() + " UTILISATION : " + host.getCpuPercentUtilization());
-                }
-                 */
-
-                //there might be a simpler way to do this! if they are already paused, there is resume functionality!
-                /*
-                LOGGER.info("WAITING? " + event.getVm().getCloudletScheduler().getCloudletWaitingList().size());
-                LOGGER.info("EXEC? " + event.getVm().getCloudletScheduler().getCloudletExecList().size());
-                LOGGER.info("FINISHED? " + event.getVm().getCloudletScheduler().getCloudletFinishedList().size());
-                */
-
-                //totalAccumulatedMips = totalAccumulatedMips.add(BigInteger.valueOf(event.getCloudlet().getFinishedLengthSoFar()));
-                totalAccumulatedMips = totalAccumulatedMips.add(BigInteger.valueOf(event.getCloudlet().getTotalLength())); // fixed, but doesn't necessarily mean this work is complete
-
-                // for the default time scheduler, this waiting list is always empty, once the VM PEs are shared across all Cloudlets running inside a VM.
-                // each Cloudlet has the opportunity to use the PEs for a given time-slice.
-                // So this scheduler doesn't suit scenarios where you are overloading the hardware!
-            });
-
-            /*
-            cloudlet.addOnUpdateProcessingListener(info -> {
-                //LOGGER.trace("CLOUDLET UPDATE PROCESSING : " + info.getCloudlet().getId() + " time = " + info.getTime());
-
-                /*
-                Vm vm0 = cloudletList.get(0).getVm();
-                //Vm vm1 = cloudletList.get(1).getVm();
-
-                //System.out.println("getCpuPercentRequested : " + vm0.getCpuPercentRequested());
-                System.out.println("getCpuPercentUtilization , " + vm0.getCpuPercentUtilization());
-                //System.out.println("getTotalCpuMipsRequested : " + vm0.getTotalCpuMipsRequested());
-                System.out.println("getHostCpuUtilization , " + vm0.getHostCpuUtilization());
-                // above is how much of this host THIS VM IS using (relative)! NOT the actual host utilisation...
-                System.out.println("getCpuPercentUtilization (host) , " + vm0.getHost().getCpuPercentUtilization());
-                */
-
-                /*
-                for(Host host : hostList) {
-                    LOGGER.trace("CPU UTILISATION (DURING). HOST : " + host.getId() + " UTILISATION : " + host.getCpuPercentUtilization());
-
-                    LOGGER.trace("getTotalMipsCapacity : " + host.getTotalMipsCapacity()); // 16000 - agreed? yes, 16 cores x 1000 (both host and VM capacity)
-                    LOGGER.trace("getCpuMipsUtilization : " + host.getCpuMipsUtilization());
-
-                    // an unused host should have loads of MIPS capacity (but it has been allocated, even though it's not in active use)
-
-                    // since CloudSim assigns a Cloudlet to a VM immediately, it marks the CPU as fully utilized, even if the Cloudlet is waiting
-                    // so, this is by design. this is not appropriate for accurate power simulations!
-                    // hence the need for calculating our own custom utilisation metric...
-                }*//*
-
-                for (Host host : datacenter.getHostList()) {
-                    VmScheduler vms = host.getVmScheduler();
-                    // this is a VmSchedulerSpaceShared - could this be where the problem is re scheduling of the VMs?
-
-                    //CustomCloudletScheduler scheduler = (CustomCloudletScheduler) host.getVmList().get(0).getCloudletScheduler();
-                    //System.err.println("HOST : " + host.getId() + " getCloudletExecList " + scheduler.getCloudletExecList().size());
-                    //System.err.println("HOST : " + host.getId() + " getCloudletWaitingList " + scheduler.getCloudletWaitingList().size());
-
-                    // so each host has one in execution, the same one
-                    // and each host has 239 in waiting. so the system fully thinks it is parallel processing when its not!
-                }
-            });
-            */
-
-            cloudletList.add(cloudlet);
-        }
-
-        return cloudletList;
-    }
 }

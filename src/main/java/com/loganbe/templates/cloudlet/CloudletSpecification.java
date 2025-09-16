@@ -5,8 +5,6 @@ package com.loganbe.templates.cloudlet;
  */
 public class CloudletSpecification {
 
-    private int cloudlets;                  // match hosts
-
     private int cloudlet_pes;               // match PES (e.g. from VM)
 
     private double cloudlet_utilisation;    // % extent to which the job will utilise the CPU (other resources i.e. RAM are specified separately)
@@ -14,14 +12,6 @@ public class CloudletSpecification {
     // -1 = unlimited - keep the work coming!
     private int cloudlet_length;            // any negative number means run continuously (throughput is then determined by VM capacity)
     private int sim_total_work;
-
-    public int getCloudlets() {
-        return cloudlets;
-    }
-
-    public void setCloudlets(int cloudlets) {
-        this.cloudlets = cloudlets;
-    }
 
     public int getCloudlet_pes() {
         return cloudlet_pes;

@@ -20,19 +20,21 @@ vmSpecification:
   vm_bw: 1000
   vm_storage: 10_000
 
-# now entirely redundant
+# note - some cloudlet configuration is independent of the abstracted app type!
+# the number of cloudlets will generally match the available hardware (for parallel processing)
 cloudletSpecification:
-  cloudlets: 100
   cloudlet_pes: 16
-  cloudlet_utilisation: 1
-  cloudlet_length: -1
-  sim_total_work: -1
+  #cloudlet_length: 10_000     # WEB
+  cloudlet_length: 3_550_000  # BATCH
+  #cloudlet_length: -1 # this approach is no longer used
+#  cloudlets: 100 # now determined by app type
+#  cloudlet_utilisation: 1
+#  sim_total_work: -1
 
 # WEB or BATCH, determines which spec to pick up below
 applicationType: BATCH
 
 webAppSpecification:
-  cloudlet_length: 10_000
   arrival_interval: 10
   # 1000 every 1 second results in too many cloudlets to log easily!
   # 500 every 1 second is roughly 50% capacity
@@ -45,5 +47,4 @@ batchAppSpecification:
   # and then slightly smaller to ensure they all have time to finish
   # otherwise you end up with nothing finishing and zero work done!
   # ((57_600_000 / 16)-50000)
-  cloudlet_length: 3_550_000
   cloudlet_count: 100
