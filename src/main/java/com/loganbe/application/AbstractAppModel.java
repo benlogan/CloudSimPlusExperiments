@@ -10,12 +10,7 @@ public class AbstractAppModel implements ApplicationModel {
 
     public long cloudletLength;
 
-    // FIXME probably needs to be reset, during multi-run sims
     public BigInteger totalAccumulatedMips = BigInteger.valueOf(0);
-
-    public AbstractAppModel(long cloudletLength) {
-        this.cloudletLength = cloudletLength;
-    }
 
     public AbstractAppModel() {}
 
@@ -28,4 +23,5 @@ public class AbstractAppModel implements ApplicationModel {
     public List<Cloudlet> generateWorkloadAtTime(double currentTime, List<Vm> vmList) {
         return List.of();
     }
+
 }

@@ -50,7 +50,7 @@ public class Main {
     private SimSpecFromFileLegacy simSpec = new SimSpecFromFileLegacy("data/infra_templates/scenarioB.yaml");
     //private SimSpecFromFile simSpec = new SimSpecFromFile("data/infra_templates/example.yaml");
 
-    private int simCount = 1;
+    private int simCount = 1; // how many discrete simulations have completed, NOT how many you want to run
     private Map<Integer, Double> energyMap = new HashMap();
     private Map<Integer, Double> workMap = new HashMap();
 
@@ -66,8 +66,8 @@ public class Main {
         System.out.println("Simulation Elapsed Time (real world) = " + currentTime/1000 + "s");
 
         // multiple sim runs...
-        //main.runSimulation(new InterventionSuite());
-        //main.printEnergy();
+        main.runSimulation(new InterventionSuite());
+        main.printEnergy();
     }
 
     // FIXME need a results object for sim executions and a comparator function
@@ -115,10 +115,10 @@ public class Main {
             vmList = createVmsFromHost();
         }
 
-        //cloudletList = CloudletHelper.createCloudlets(simSpec, simSpec.getCloudletSpecification().getCloudlets(), vmList); // old/simple method (legacy approach, pre app abstraction model)
+        // old/simple method (legacy approach, pre app abstraction model)
+        //cloudletList = CloudletHelper.createCloudlets(simSpec, simSpec.getCloudletSpecification().getCloudlets(), vmList);
 
         // create a list of cloudlets (cloud applications), using the abstraction model;
-
         AbstractAppModel app;
         LOGGER.info("App Type : " + simSpec.getApplicationType());
         if(simSpec.getApplicationType().equals("WEB")) {
@@ -250,7 +250,7 @@ public class Main {
         final var cloudletFinishedList = broker.getCloudletCreatedList(); // safer than getCloudletFinishedList
 
         // results table to stdout
-        new CloudletsTableBuilderExtended(cloudletFinishedList).build(); // customised version with fixes/enhancements
+        //new CloudletsTableBuilderExtended(cloudletFinishedList).build(); // customised version with fixes/enhancements
 
         //new CloudletsTableBuilder(cloudletFinishedList, new HtmlTable()).build();
         //new CloudletsTableBuilder(cloudletFinishedList, new CsvTable()).build(); // replaced/extended below
