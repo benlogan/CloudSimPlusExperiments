@@ -187,8 +187,6 @@ public class Main {
 
         // custom utilisation logic - essentially sampling utilisation more frequently and taking my own average
         // more granular and much more accurate!
-        // FIXME is there a fundamental weakness here, when the host shows as being fully utilised in the moment when it isn't, because all cores aren't in use?
-        // working here! - no because it is fully utilised? its not a fixed number of jobs (in webapp). so it just consumes more cloudlets across the spare cores?
         Map<Long, Double> sumUtil = new HashMap<>();
         Map<Long, Integer> cntUtil = new HashMap<>();
 
@@ -313,6 +311,11 @@ public class Main {
             int count = cntUtil.get(host.getId());
             double averageUtilisation = sum / count;
             //LOGGER.info("HOST : " + host.getId() + " AVG UTILISATION : " + (averageUtilisation * 100) + "%");
+            //LOGGER.info("Utilisation (old method) : " + (host.getCpuUtilizationStats().getMean() * 100) + "%");
+            // old method - for a webapp, when all cores are utilised this will appear to be 100%, incorrectly
+            // when only one core is utilised, it will simply show the % of one core, as if that one core was being fully utilised (also wrong)
+            // for a batch app, it will actually be correct and match the custom metric (both single and multithreaded)
+            // this sort of makes sense - if we are starting and stopping jobs more often - we need to take more granular measurements to ensure accuracy
             hostUtilisation.put(host.getId(), averageUtilisation);
             // FIXME - not doing anything with VM utilisation, it should match host for most of my scenarios (can revisit this later)
         }
@@ -343,7 +346,6 @@ public class Main {
         // moving to pure percentage based approach (+ support for heterogeneous hardware)
 
         long deltaWork = BigInteger.valueOf(totalWorkExpected).subtract(actualAccumulatedMips).intValue();
-        long deltaWorkMax = BigInteger.valueOf(totalWorkExpectedMax).subtract(actualAccumulatedMips).intValue();
 
         BigInteger expectedBig = BigInteger.valueOf(totalWorkExpected);
         BigInteger delta = expectedBig.subtract(actualAccumulatedMips).abs();
@@ -553,18 +555,6 @@ public class Main {
         host.setPowerModel(powerModel);
 
         host.enableUtilizationStats(); // needed to calculate energy usage
-
-        /*
-         DELETE ME - NOT A GOOD PLACE TO DO UTILISATION - FIRES WHEN HOST IS PROCESSING, SO MORE LIKELY TO CAPTURE BUSY MOMENTS
-        host.addOnUpdateProcessingListener(info -> {
-            if(info.getHost().getId() == 0) { // reduce logging, take a sample
-                //System.out.println("HOST : UPDATE PROCESSING : time = " + info.getTime() + " next cloudlet completion time = " + info.getNextCloudletCompletionTime());
-                System.out.println("HOST : getCpuPercentUtilization : " + info.getHost().getCpuPercentUtilization());
-                System.out.println("HOST : MEAN : " + info.getHost().getCpuUtilizationStats().getMean());
-                // new Power().printHostsCpuUtilizationAndPowerConsumption(hostList); // useful to confirm expected end results
-            }
-        });
-        */
 
         return host;
     }
