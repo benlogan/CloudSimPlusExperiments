@@ -9,6 +9,7 @@ import java.util.List;
 public class AbstractAppModel implements ApplicationModel {
 
     public long cloudletLength;
+    public int cloudletPes;
 
     public BigInteger totalAccumulatedMips = BigInteger.valueOf(0);
 

@@ -14,16 +14,17 @@ public class BatchApp extends AbstractAppModel {
 
     private final int cloudletCount;
 
-    public BatchApp(long cloudletLength, int cloudletCount) {
+    public BatchApp(long cloudletLength, int cloudletCount, int cloudletPes) {
         this.cloudletLength = cloudletLength;
         this.cloudletCount = cloudletCount;
+        this.cloudletPes = cloudletPes;
     }
 
     @Override
     public List<Cloudlet> generateInitialWorkload(List<Vm> vmList) {
         List<Cloudlet> list = new ArrayList<>();
         for (int i = 0; i < cloudletCount; i++) {
-            Cloudlet cloudlet = new CloudletSimpleFixed(cloudletLength, (int) vmList.get(i).getPesNumber(), new UtilizationModelFull());
+            Cloudlet cloudlet = new CloudletSimpleFixed(cloudletLength, cloudletPes, new UtilizationModelFull());
             cloudlet.setVm(vmList.get(i));
 
             cloudlet.addOnFinishListener(event -> {
