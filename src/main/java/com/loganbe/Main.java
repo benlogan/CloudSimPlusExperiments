@@ -13,7 +13,6 @@ import org.cloudsimplus.allocationpolicies.VmAllocationPolicyRoundRobin;
 import org.cloudsimplus.brokers.DatacenterBroker;
 import org.cloudsimplus.brokers.DatacenterBrokerSimple;
 import org.cloudsimplus.builders.tables.CloudletsTableBuilder;
-import org.cloudsimplus.builders.tables.CloudletsTableBuilderExtended;
 import org.cloudsimplus.builders.tables.TableBuilderAbstract;
 import org.cloudsimplus.cloudlets.Cloudlet;
 import org.cloudsimplus.core.CloudSimPlus;
@@ -23,7 +22,6 @@ import org.cloudsimplus.hosts.HostSimpleFixed;
 import org.cloudsimplus.power.models.PowerModelHostSimple;
 import org.cloudsimplus.resources.Pe;
 import org.cloudsimplus.resources.PeSimple;
-import org.cloudsimplus.schedulers.cloudlet.CustomCloudletScheduler;
 import org.cloudsimplus.schedulers.cloudlet.CustomVm;
 import org.cloudsimplus.util.Log;
 import org.cloudsimplus.vms.Vm;
@@ -67,8 +65,8 @@ public class Main {
         System.out.println("Simulation Elapsed Time (real world) = " + currentTime/1000 + "s");
 
         // multiple sim runs...
-        main.runSimulation(new InterventionSuite());
-        main.printEnergy();
+        //main.runSimulation(new InterventionSuite());
+        //main.printEnergy();
     }
 
     // FIXME need a results object for sim executions and a comparator function
@@ -133,9 +131,9 @@ public class Main {
         AbstractAppModel app;
         LOGGER.info("App Type : " + simSpec.getApplicationType());
         if(simSpec.getApplicationType().equals("WEB")) {
-            app = new WebApp(simSpec.getCloudletSpecification().getCloudlet_length(), simSpec.getWebAppSpecification().getArrival_interval());
+            app = new WebApp(simSpec.getCloudletSpecification().getCloudlet_length(), simSpec.getWebAppSpecification().getArrival_interval(), simSpec.getCloudletSpecification().getCloudlet_pes());
         } else if(simSpec.getApplicationType().equals("BATCH")) {
-            app = new BatchApp(simSpec.getCloudletSpecification().getCloudlet_length(), simSpec.getBatchAppSpecification().getCloudlet_count());
+            app = new BatchApp(simSpec.getCloudletSpecification().getCloudlet_length(), simSpec.getBatchAppSpecification().getCloudlet_count(), simSpec.getCloudletSpecification().getCloudlet_pes());
         } else {
             app = null;
         }
@@ -187,15 +185,32 @@ public class Main {
             LOGGER.trace("-------------------------------------------------------");
         });*/
 
-        /*
+        // custom utilisation logic - essentially sampling utilisation more frequently and taking my own average
+        // more granular and much more accurate!
+        // FIXME is there a fundamental weakness here, when the host shows as being fully utilised in the moment when it isn't, because all cores aren't in use?
+        // working here! - no because it is fully utilised? its not a fixed number of jobs (in webapp). so it just consumes more cloudlets across the spare cores?
+        Map<Long, Double> sumUtil = new HashMap<>();
+        Map<Long, Integer> cntUtil = new HashMap<>();
+
         simulation.addOnClockTickListener(evt -> {
             for (Host host : datacenter.getHostList()) {
                 double utilization = host.getCpuPercentUtilization();
-                // this just confirms that all hosts are all utilised when they aren't (i.e. they are allocated!)
-                System.out.printf("Time %.2f: Host %d CPU Utilization: %.2f%%\n",
-                        simulation.clock(), host.getId(), utilization * 100);
+                // all hosts can appear utilised when they aren't (i.e. because they are simply allocated!) - this doesn't meet my definition of utilisation;
+                // allocation is not what we are typically interested in - it's not CPU utilisation under load
+                LOGGER.trace("Time %.2f: Host %d CPU Utilization: %.2f%%\n", simulation.clock(), host.getId(), utilization * 100);
+
+                double sum = 0;
+                if (sumUtil.get(host.getId()) != null) {
+                    sum = sumUtil.get(host.getId()) + utilization;
+                }
+                int cnt = 0;
+                if (cntUtil.get(host.getId()) != null) {
+                    cnt = cntUtil.get(host.getId()) + 1;
+                }
+                sumUtil.put(host.getId(), sum);
+                cntUtil.put(host.getId(), cnt);
             }
-        });*/
+        });
 
         // periodically check for new workload (e.g. for web apps, additional cloudlets are added during sim execution)
         simulation.addOnClockTickListener(evt -> {
@@ -220,15 +235,18 @@ public class Main {
         }
 
         LOGGER.info("Simulation End Time " + simulation.clockInHours() + "h or " + simulation.clockInMinutes() + "m");
+        LOGGER.trace("CPU Utilisation Sample Count : " + cntUtil.get(0l)); // maps directly to scheduling interval
 
         // simulation complete - calculate work done...
 
         long totalWorkExpected;
         // work expected is a function of how long we run the simulation for (not pre-determined)
+        long totalWorkExpectedMax; // theoretical max, if you used all cores
 
         if (SimSpecInterfaceHomogenous.class.isAssignableFrom(simSpec.getClass())) { // legacy template
-            // important - not theoretical max (simSpec.getHostSpecification().getHost_pes()), but rather how many cores did you ask to use!
+            // important - not theoretical max, but rather how many cores did you ask to use (in configuration)!
             totalWorkExpected = 1L * simSpec.getHostSpecification().getHost_mips() * simSpec.getHostSpecification().getHosts() * simSpec.getCloudletSpecification().getCloudlet_pes() * SimulationConfig.DURATION; // legacy approach (homogenous)
+            totalWorkExpectedMax = 1L * simSpec.getHostSpecification().getHost_mips() * simSpec.getHostSpecification().getHosts() * simSpec.getHostSpecification().getHost_pes() * SimulationConfig.DURATION;
         } else {
             totalWorkExpected = 0;
             for (ServersSpecification server : simSpec.getServerSpecifications()) {
@@ -236,9 +254,11 @@ public class Main {
                 totalWorkExpected += mips;
             }
             totalWorkExpected = totalWorkExpected * SimulationConfig.DURATION;
+            totalWorkExpectedMax = 0; // FIXME later
         }
         // FIXME - not accounting for interventions! Not a major issue, just ignore the warning...
         LOGGER.info("Total Work Expected " + totalWorkExpected + " MIPS");
+        LOGGER.info("Total Work Expected (max) " + totalWorkExpectedMax + " MIPS");
 
         // this is based on completing cloudlets incrementing a work completed counter, using the cloudlet length, from the cloudlet specification
         LOGGER.info("Total Work Completed " + app.totalAccumulatedMips + " MIPS");
@@ -250,7 +270,7 @@ public class Main {
         }
         LOGGER.info("Actual Work Completed " + actualAccumulatedMips + " MIPS");
 
-        calculateWorkDelta(totalWorkExpected, actualAccumulatedMips);
+        calculateWorkDelta(totalWorkExpected, totalWorkExpectedMax, actualAccumulatedMips);
 
         if(SimulationConfig.DURATION == -1) { // don't bother calculating this - usually using a fixed time frame
             calculateTimeDelta(totalWorkExpected);
@@ -283,12 +303,22 @@ public class Main {
         // useful because the usual table doesn't tell us what is going on in each core (so this complements the cloudlet view/table)
 
         //List<CustomVm> vmList = broker.getVmCreatedList();
-
         //printCloudletExecutionStatsPerVcpu(vmList);
         //printCloudletExecutionStatsPerVcpuTabular(vmList);
 
+        // custom utilisation logic...
+        Map<Long, Double> hostUtilisation = new HashMap<>();
+        for (Host host : hostList) {
+            double sum = sumUtil.get(host.getId());
+            int count = cntUtil.get(host.getId());
+            double averageUtilisation = sum / count;
+            //LOGGER.info("HOST : " + host.getId() + " AVG UTILISATION : " + (averageUtilisation * 100) + "%");
+            hostUtilisation.put(host.getId(), averageUtilisation);
+            // FIXME - not doing anything with VM utilisation, it should match host for most of my scenarios (can revisit this later)
+        }
+
         Power power = new Power();
-        double totalEnergy = power.calculateHostsCpuUtilizationAndEnergyConsumption(hostList, actualAccumulatedMips);
+        double totalEnergy = power.calculateTotalEnergy(hostList, hostUtilisation, actualAccumulatedMips);
         energyMap.put(simCount, totalEnergy);
         workMap.put(simCount, actualAccumulatedMips.doubleValue());
 
@@ -298,19 +328,6 @@ public class Main {
         chartResults.add(power.sci);
         chartMap.put(simCount, chartResults);
 
-        //printCustomUtilisation(vmList, hostList);
-        //new Power().printVmsCpuUtilizationAndPowerConsumption(vmList);
-
-        // print out the new custom utilisation data (accurate!)
-        // no longer needed - we are now using this measure in the power/energy code
-        /*
-        CustomCloudletScheduler scheduler = (CustomCloudletScheduler) simSpec.scheduler;
-        for(Host host : datacenter.getHostList()) {
-            double elapsedTime = scheduler.getHostElapsedTime(host.getId());
-            double endTime = simulation.clock();
-            double utilisation = elapsedTime / endTime * 100.0;
-            LOGGER.info("getHostElapsedTime (Host " + host.getId() + ")" + " elapsed time(s) = " + Math.round(scheduler.getHostElapsedTime(host.getId())) + " utilisation = " + Math.round(utilisation) + "%");
-        }*/
         simCount++;
     }
 
@@ -320,24 +337,32 @@ public class Main {
      * @param actualAccumulatedMips
      * @return
      */
-    public double calculateWorkDelta(long totalWorkExpected, BigInteger actualAccumulatedMips) {
+    public double calculateWorkDelta(long totalWorkExpected, long totalWorkExpectedMax, BigInteger actualAccumulatedMips) {
         // acceptable error - 5 minute(s) of processing time (<5%)
         // long acceptableError = simSpec.getHostSpecification().getHost_mips() * simSpec.getHostSpecification().getHosts() * (5 * 60);
         // moving to pure percentage based approach (+ support for heterogeneous hardware)
 
         long deltaWork = BigInteger.valueOf(totalWorkExpected).subtract(actualAccumulatedMips).intValue();
+        long deltaWorkMax = BigInteger.valueOf(totalWorkExpectedMax).subtract(actualAccumulatedMips).intValue();
 
         BigInteger expectedBig = BigInteger.valueOf(totalWorkExpected);
         BigInteger delta = expectedBig.subtract(actualAccumulatedMips).abs();
 
+        BigInteger expectedBigMax = BigInteger.valueOf(totalWorkExpectedMax);
+        BigInteger deltaMax = expectedBigMax.subtract(actualAccumulatedMips).abs();
+
         // convert to double for percentage calculation
         double deltaPercentage = delta.doubleValue() / totalWorkExpected * 100;
+        double deltaPercentageMax = deltaMax.doubleValue() / totalWorkExpectedMax * 100;
 
         if(deltaWork > 0 && deltaPercentage > ACCEPTABLE_WORKLOAD_ERROR) {
             LOGGER.warn("Unfinished MIPS = " + deltaWork + " (" + deltaPercentage + "%)");
         } else if(deltaWork < 0 && deltaPercentage > ACCEPTABLE_WORKLOAD_ERROR) {
             LOGGER.warn("Excess MIPS = " + Math.abs(deltaWork) + " (" + deltaPercentage + "%)");
         }
+
+        LOGGER.info("Utilisation (based on work complete) : " + (100 - deltaPercentage) + "%");
+        LOGGER.info("Utilisation (using theoretical max ) : " + (100 - deltaPercentageMax) + "%");
 
         return deltaPercentage;
     }
@@ -353,34 +378,6 @@ public class Main {
         }
         return timeDelta;
     }
-
-    /**
-     * needs refactoring, but this demonstrates the custom utilisation method still works - the data structures are just messy
-     * i.e. this requires summing up the utilisation across all hosts, for each VM - could be more efficient (FIXME)
-     *
-     * @param vmList
-     * @param hostList
-     */
-    public void printCustomUtilisation(List<CustomVm> vmList, List<Host> hostList) {
-        Map<Long, Double> hostElapsedTime = new HashMap<>();
-        for (CustomVm vm : vmList) {
-            CustomCloudletScheduler cloudletScheduler = (CustomCloudletScheduler) vm.getCloudletScheduler();
-
-            for (Host host : hostList) {
-                double elapsedTime = cloudletScheduler.getHostElapsedTime(host.getId());
-                hostElapsedTime.put(host.getId(), hostElapsedTime.getOrDefault(host.getId(), 0.0) + elapsedTime);
-            }
-        }
-
-        for (Host host : hostList) {
-            double elapsedTime = hostElapsedTime.get(host.getId());
-            double endTime = host.getDatacenter().getSimulation().clock();
-            final double utilizationPercentMean = elapsedTime / endTime;
-            System.out.println("Custom Utilisation - host ID : " + host.getId() + " elapsedTime : " + elapsedTime + " utilisation : " + utilizationPercentMean);
-        }
-    }
-
-    // after simulation completes,
 
     /**
      * prints cloudlet execution MIPS and percentages, per VCPU
@@ -558,11 +555,14 @@ public class Main {
         host.enableUtilizationStats(); // needed to calculate energy usage
 
         /*
+         DELETE ME - NOT A GOOD PLACE TO DO UTILISATION - FIRES WHEN HOST IS PROCESSING, SO MORE LIKELY TO CAPTURE BUSY MOMENTS
         host.addOnUpdateProcessingListener(info -> {
-            LOGGER.trace("HOST : UPDATE PROCESSING : time = " + info.getTime() + " next cloudlet completion time = " + info.getNextCloudletCompletionTime());
-            LOGGER.trace("HOST : getCpuPercentUtilization : " + info.getHost().getCpuPercentUtilization());
-            LOGGER.trace("HOST : MEAN : " + info.getHost().getCpuUtilizationStats().getMean());
-            // new Power().printHostsCpuUtilizationAndPowerConsumption(hostList); // useful to confirm expected end results
+            if(info.getHost().getId() == 0) { // reduce logging, take a sample
+                //System.out.println("HOST : UPDATE PROCESSING : time = " + info.getTime() + " next cloudlet completion time = " + info.getNextCloudletCompletionTime());
+                System.out.println("HOST : getCpuPercentUtilization : " + info.getHost().getCpuPercentUtilization());
+                System.out.println("HOST : MEAN : " + info.getHost().getCpuUtilizationStats().getMean());
+                // new Power().printHostsCpuUtilizationAndPowerConsumption(hostList); // useful to confirm expected end results
+            }
         });
         */
 
