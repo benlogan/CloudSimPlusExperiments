@@ -13,6 +13,11 @@ public class Utilities {
     public static final Logger LOGGER = LoggerFactory.getLogger(Utilities.class.getSimpleName());
 
     public static void writeCsv(String csvContent, String filePath) {
+        String value = System.getenv("CSV");
+        if(value.equals("false")) {
+            return;
+        }
+
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(filePath))) {
             writer.write(csvContent);
             // use of file:// etc is simply to make the link clickable in console
