@@ -93,17 +93,16 @@ public class WebApp extends AbstractAppModel {
             // for now, just use a value that we can expect to have completed, can improve this code later
 
             // schedule the next arrival (constant, predictable load)
-            nextArrivalTime += arrivalInterval;
+            //nextArrivalTime += arrivalInterval;
 
             /*
-                WORKINGHERE
                 introducing some randomness, to simulate real-world webapp behavior (variable load)
-                while varying this from 1-10, to 1-30, will significantly impact the work done
-                it won't for multiple runs with similar randomness - need to understand that better
-                I think its because I'm massively over-provisioned, so its not a determining factor in work done
-                surely its just because of uniform distribution within the randomness
+                while varying this from 1-10, to 1-30 (for example), will significantly impact the work done
+                it won't for multiple runs with similar randomness
+                because of uniform distribution within the randomness (on average, a similar gap will be applied)
+                same applies to the batch randomness - it will be similar for multiple runs, using the current approach
              */
-            //nextArrivalTime += (int)(Math.random() * 10) + 1;
+            nextArrivalTime += (int)(Math.random() * 10) + 1;
 
             //LOGGER.info("nextArrivalTime : " + nextArrivalTime + " gap : " + (nextArrivalTime - currentTime));
         }
