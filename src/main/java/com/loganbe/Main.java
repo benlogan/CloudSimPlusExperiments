@@ -358,7 +358,7 @@ public class Main {
         for (int t = 0; t < numSteps; t++) {
             csv.append(t); // or actual time if you have it
             for (Long hostId : hostUtil.keySet().stream().sorted().toList()) {
-                csv.append(",").append(hostUtil.get(hostId).get(t));
+                csv.append(";").append(hostUtil.get(hostId).get(t));
             }
             csv.append("\n");
         }
