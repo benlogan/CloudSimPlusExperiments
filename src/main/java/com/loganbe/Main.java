@@ -189,13 +189,24 @@ public class Main {
         // more granular and much more accurate!
         Map<Long, Double> sumUtil = new HashMap<>();
         Map<Long, Integer> cntUtil = new HashMap<>();
+        Map<Long, List> hostUtil = new HashMap<>();         // timeseries data
+        List<Double> utilTimeSeries = new ArrayList<>();    // timeseries data
 
         simulation.addOnClockTickListener(evt -> {
+
             for (Host host : datacenter.getHostList()) {
+
                 double utilization = host.getCpuPercentUtilization();
+
+                if(hostUtil.get(host.getId()) != null) {
+                    hostUtil.get(host.getId()).add(utilization * 100);
+                } else {
+                    hostUtil.put(host.getId(), utilTimeSeries);
+                }
+
                 // all hosts can appear utilised when they aren't (i.e. because they are simply allocated!) - this doesn't meet my definition of utilisation;
                 // allocation is not what we are typically interested in - it's not CPU utilisation under load
-                LOGGER.trace("Time %.2f: Host %d CPU Utilization: %.2f%%\n", simulation.clock(), host.getId(), utilization * 100);
+                //System.out.printf("Time %.2f: Host %d CPU Utilization: %.2f%%\n", simulation.clock(), host.getId(), utilization * 100);
 
                 double sum = 0;
                 if (sumUtil.get(host.getId()) != null) {
@@ -230,6 +241,16 @@ public class Main {
         int incomplete = broker.getCloudletSubmittedList().size() - broker.getCloudletFinishedList().size();
         if (incomplete > 0) {
             LOGGER.error("Some Cloudlets Remain Unfinished : " + incomplete);
+            long incompleteMIPS = 0;
+            for(Cloudlet cloudlet : broker.getCloudletSubmittedList()) {
+                if(cloudlet.isRunning()) {
+                    //LOGGER.error("CLOUDLET STILL RUNNING : " + cloudlet.getId());
+                    //LOGGER.error("CLOUDLET FINISHED SO FAR : " + cloudlet.getFinishedLengthSoFar());
+                    incompleteMIPS += cloudlet.getFinishedLengthSoFar();
+                }
+            }
+            LOGGER.error("MIPS associated with incomplete cloudlets (in flight) : " + incompleteMIPS);
+            // FIXME in theory this should be counted towards 'work completed', but its usually small
         }
 
         LOGGER.info("Simulation End Time " + simulation.clockInHours() + "h or " + simulation.clockInMinutes() + "m");
@@ -319,6 +340,30 @@ public class Main {
             hostUtilisation.put(host.getId(), averageUtilisation);
             // FIXME - not doing anything with VM utilisation, it should match host for most of my scenarios (can revisit this later)
         }
+
+        // note this is not using the above averages, but the full time series!
+        StringBuilder csv = new StringBuilder();
+
+        // header
+        csv.append("time");
+        hostUtil.keySet().stream()
+                .sorted()
+                .forEach(hostId -> csv.append(",host").append(hostId));
+        csv.append("\n");
+
+        // assume all hosts have the same number of samples
+        int numSteps = hostUtil.values().iterator().next().size();
+
+        // for each timestep, print values for each host
+        for (int t = 0; t < numSteps; t++) {
+            csv.append(t); // or actual time if you have it
+            for (Long hostId : hostUtil.keySet().stream().sorted().toList()) {
+                csv.append(",").append(hostUtil.get(hostId).get(t));
+            }
+            csv.append("\n");
+        }
+
+        Utilities.writeCsv(csv.toString(), "data/sim_data_util_" + friendlyDate + ".csv");
 
         Power power = new Power();
         double totalEnergy = power.calculateTotalEnergy(hostList, hostUtilisation, actualAccumulatedMips);
@@ -582,8 +627,31 @@ public class Main {
 
             // unclear why space scheduler appears to be blocking across hosts (preventing parallel execution)
             // remember the host also appears fully allocated all the time (which is wrong, or unexpected, but at least explains why cloudlets aren't being ran in parallel)
-            // fix - each VM must have its own CloudletScheduler instance (otherwise parts of the system become consused and start sharing a single VM!)
+            // fix - each VM must have its own CloudletScheduler instance (otherwise parts of the system become confused and start sharing a single VM!)
+
             vm.setCloudletScheduler(simSpec.getScheduler());
+
+            vm.getCloudletScheduler().addOnCloudletResourceAllocationFail(evt -> {
+                LOGGER.info("Terminating Cloudlet : " + evt.getCloudlet().getId());
+                // FIXME end up in here twice for the same cloudlet, not sure why
+
+                // very hacky temporary workaround, but its working - stops them hogging the CPU...
+                // it does also result in subsequent over-provisioned cloudlets being processed/rejected
+                // (where as without this change they somehow end up being queued and succesfully processed!)
+                //evt.getCloudlet().setStatus(Cloudlet.Status.SUCCESS);
+
+                // FIXME all below options on their own, result in CPU hogging!
+                //evt.getCloudlet().setStatus(Cloudlet.Status.CANCELED);
+                //evt.getCloudlet().setStatus(Cloudlet.Status.FAILED);
+                //evt.getCloudlet().setStatus(Cloudlet.Status.PAUSED);
+
+                Cloudlet cl = evt.getCloudlet();
+                Vm vmCl = cl.getVm();
+
+                // better solution - remove it from the VM queue so it can't block
+                vmCl.getCloudletScheduler().cloudletCancel(cl);
+                cl.setStatus(Cloudlet.Status.FAILED); // or CANCELED if you prefer
+            });
 
             //LOGGER.info("getCloudletScheduler : " + vm.getCloudletScheduler());
 
