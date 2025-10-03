@@ -126,9 +126,13 @@ public class ExportCsvTable extends AbstractTable {
     /**
      * new method (hence new table class) to generate csv as a string
      * the rest of this class is unchanged (i.e. as per CsvTable)
+     * does NOT scale for large tables - becomes very slow!
      * @return csv
      */
     public String getCsvString() {
+        //System.out.println("getCsvString START");
+        long startTime = System.currentTimeMillis();
+
         String csvString = "";
 
         for (TableColumn column : this.getColumns()) {
@@ -141,9 +145,12 @@ public class ExportCsvTable extends AbstractTable {
         }
         csvString += '\n';
 
+        //System.out.println("getCsvString MID"); // scaling problem with rows...
         for (List<Object> row : this.getRows()) {
             csvString += row.toString().replace('[',' ').replace(']',' ').strip().replaceAll("\\s+","") + '\n';
         }
+
+        System.out.println("getCsvString END : " + (System.currentTimeMillis() - startTime) + "ms");
         return csvString;
     }
 
