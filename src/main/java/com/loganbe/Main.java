@@ -8,12 +8,11 @@ import com.loganbe.power.Power;
 import com.loganbe.templates.ServersSpecification;
 import com.loganbe.templates.SimSpecFromFileLegacy;
 import com.loganbe.templates.SimSpecInterfaceHomogenous;
+import com.loganbe.utilities.Sampler;
 import com.loganbe.utilities.Utilities;
 import org.cloudsimplus.allocationpolicies.VmAllocationPolicyRoundRobin;
 import org.cloudsimplus.brokers.DatacenterBroker;
 import org.cloudsimplus.brokers.DatacenterBrokerSimple;
-import org.cloudsimplus.builders.tables.CloudletsTableBuilder;
-import org.cloudsimplus.builders.tables.TableBuilderAbstract;
 import org.cloudsimplus.cloudlets.Cloudlet;
 import org.cloudsimplus.core.CloudSimPlus;
 import org.cloudsimplus.datacenters.Datacenter;
@@ -32,6 +31,7 @@ import java.io.File;
 import java.math.BigInteger;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.loganbe.SimulationConfig.ACCEPTABLE_WORKLOAD_ERROR;
 
@@ -56,13 +56,13 @@ public class Main {
     public static final Logger LOGGER = LoggerFactory.getLogger(Main.class.getSimpleName());
 
     public static void main(String[] args) {
-        long currentTime = System.currentTimeMillis();
-
         Main main = new Main();
-        main.runSimulation(null);
 
-        currentTime = System.currentTimeMillis() - currentTime;
-        System.out.println("Simulation Elapsed Time (real world) = " + currentTime/1000 + "s");
+        int intendedExecutions = 5;
+
+        for(int i = 0; i < intendedExecutions; i++) {
+            main.runSimulation(null);
+        }
 
         // multiple sim runs...
         //main.runSimulation(new InterventionSuite());
@@ -96,6 +96,8 @@ public class Main {
     }
 
     private void runSimulation(InterventionSuite interventions) {
+        long currentTime = System.currentTimeMillis();
+
         /*Enables just some level of log messages.
           Make sure to import org.cloudsimplus.util.Log;*/
         Log.setLevel(ch.qos.logback.classic.Level.INFO); // THERE IS NO DEBUG LOGGING (AND ONLY MINIMAL TRACE)!
@@ -189,20 +191,30 @@ public class Main {
         // more granular and much more accurate!
         Map<Long, Double> sumUtil = new HashMap<>();
         Map<Long, Integer> cntUtil = new HashMap<>();
-        Map<Long, List> hostUtil = new HashMap<>();         // timeseries data
-        List<Double> utilTimeSeries = new ArrayList<>();    // timeseries data
+        Map<Long, List> hostUtil = new HashMap<>();     // timeseries data
 
-        simulation.addOnClockTickListener(evt -> {
+        // FIXME - later can set these to the underlying sim variables...
+        final double INTERVAL = 0.1;   // seconds
+        final double END_TIME = 3600;  // 1 hour
+
+        AtomicInteger tickCount = new AtomicInteger();
+        // used to do this via addOnClockTickListener, but that is NOT consistent
+        // you will get a variable number of events, with random load
+        // better to use a custom sampler at a fixed interval - for charting etc
+        new Sampler(simulation, INTERVAL, END_TIME, t -> {
+            tickCount.getAndIncrement();
 
             for (Host host : datacenter.getHostList()) {
-
                 double utilization = host.getCpuPercentUtilization();
 
+                List<Double> utilTimeSeries;
                 if(hostUtil.get(host.getId()) != null) {
-                    hostUtil.get(host.getId()).add(utilization * 100);
+                    utilTimeSeries = hostUtil.get(host.getId());
                 } else {
-                    hostUtil.put(host.getId(), utilTimeSeries);
+                    utilTimeSeries = new ArrayList<>();
                 }
+                utilTimeSeries.add(utilization * 100);
+                hostUtil.put(host.getId(), utilTimeSeries);
 
                 // all hosts can appear utilised when they aren't (i.e. because they are simply allocated!) - this doesn't meet my definition of utilisation;
                 // allocation is not what we are typically interested in - it's not CPU utilisation under load
@@ -254,7 +266,7 @@ public class Main {
         }
 
         LOGGER.info("Simulation End Time " + simulation.clockInHours() + "h or " + simulation.clockInMinutes() + "m");
-        LOGGER.trace("CPU Utilisation Sample Count : " + cntUtil.get(0l)); // maps directly to scheduling interval
+        //System.err.println("tickCount (sampling) " + tickCount.get()); // maps roughly to scheduling interval
 
         // simulation complete - calculate work done...
 
@@ -305,13 +317,16 @@ public class Main {
         //new CloudletsTableBuilder(cloudletFinishedList, new HtmlTable()).build();
         //new CloudletsTableBuilder(cloudletFinishedList, new CsvTable()).build(); // replaced/extended below
 
+        SimpleDateFormat formatter = new SimpleDateFormat("dd_MM_yyyy_HH:mm:ss");
+        String friendlyDate = formatter.format(new Date());
         // results table to csv, for easy charting (new custom table type, to fetch csv as string)
+        /*
         TableBuilderAbstract tableBuilder = new CloudletsTableBuilder(cloudletFinishedList, new ExportCsvTable());
         ExportCsvTable table = (ExportCsvTable) tableBuilder.getTable();
         tableBuilder.build();
-        SimpleDateFormat formatter = new SimpleDateFormat("dd_MM_yyyy_HH:mm:ss");
-        String friendlyDate = formatter.format(new Date());
         Utilities.writeCsv(table.getCsvString(), "data/sim_data_" + friendlyDate + ".csv");
+        */
+        // the call to table.getCsvString() does NOT scale well, for large numbers of cloudlets - disabling for now
 
         // new table showing activity in each core
         //System.out.println(broker.getVmCreatedList().get(0).getHost().getPeList().get(0).getStatus().toString());
@@ -346,9 +361,11 @@ public class Main {
 
         // header
         csv.append("time");
+        csv.append("host");
+        /* // now just printing the first host only, to reduce processing (they are generally the same)
         hostUtil.keySet().stream()
                 .sorted()
-                .forEach(hostId -> csv.append(",host").append(hostId));
+                .forEach(hostId -> csv.append(",host").append(hostId)); */
         csv.append("\n");
 
         // assume all hosts have the same number of samples
@@ -358,7 +375,9 @@ public class Main {
         for (int t = 0; t < numSteps; t++) {
             csv.append(t); // or actual time if you have it
             for (Long hostId : hostUtil.keySet().stream().sorted().toList()) {
-                csv.append(";").append(hostUtil.get(hostId).get(t));
+                if(hostId == 0) {
+                    csv.append(";").append(hostUtil.get(hostId).get(t));
+                } // don't bother logging all - the sim will generally distribute load evenly (so they will all be the same)
             }
             csv.append("\n");
         }
@@ -377,6 +396,9 @@ public class Main {
         chartMap.put(simCount, chartResults);
 
         simCount++;
+
+        currentTime = System.currentTimeMillis() - currentTime;
+        System.out.println("Simulation Elapsed Time (real world) = " + currentTime/1000 + "s");
     }
 
     /**
