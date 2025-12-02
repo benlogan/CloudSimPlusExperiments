@@ -1,0 +1,23 @@
+Charting Process;
+
+copy the raw data from the csv
+
+paste into excel
+
+'text to columns' (delimitered on ';')
+
+too many points to plot (unless you reduce sampling frequency)...
+
+pivot table (on selected rows/columns)
+
+rows = time
+values = average of host
+
+then the key thing - group by 1000s (right click anywhere in time column)
+
+create standard line chart
+
+add trendline (show average)
+
+show two different series/scale
+e.g. utilisation on left, cumulative work done on right
