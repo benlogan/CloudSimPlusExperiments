@@ -13,6 +13,12 @@ public class Sci {
 
     public static double calculateSci(double operationalEmissions, double embodiedEmissions, double rate) {
 
+        if(rate == 0) {
+            //LOGGER.error("Can't calculate SCI with a zero rate! setting a tiny amount of work done!");
+            return 1; // SCI doesn't handle zero work. fix the SCI at 1 - not a good score
+            //rate = 0.000000001;
+        }
+
         // these are lifetime embodied emissions numbers (raw)
         // they need to be amortized - shred to the same time-frame as the operational emissions (currently 1hr)
         // assuming 4 years of operational lifetime...
