@@ -13,7 +13,7 @@ pivot table (on selected rows/columns)
 rows = time
 values = average of host
 
-then the key thing - group by 1000s (right click anywhere in time column)
+then the key thing - group by 600 (right click anywhere in time column) - 600 equates to a row per minute of the sim
 
 create standard line chart
 
