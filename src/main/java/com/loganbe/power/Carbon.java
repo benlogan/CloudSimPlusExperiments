@@ -32,8 +32,9 @@ public class Carbon {
     public double energyToCarbon(double energy) {
         //double carbonG = energy * carbonIntensity;
 
-        double carbonG = energy * liveCarbonIntensity();
-        //double carbonG = energy * CARBON_INTENSITY_DIRTY;
+        //double carbonG = energy * liveCarbonIntensity();
+
+        double carbonG = energy * CARBON_INTENSITY_CLEAN;
 
         return new BigDecimal(carbonG/1000).setScale(2, RoundingMode.HALF_UP).doubleValue();
         //return carbonG/1000;
