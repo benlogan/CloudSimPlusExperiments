@@ -9,7 +9,7 @@ public class Pue {
 
     // pue = Total Facility Energy / IT Equipment Energy (servers)
     // using the generally accepted hyper-scale average, for now
-    public double pue = 1.2; // @ 1.2, ~17% is overhead
+    //public double pue = 1.2; // @ 1.2, ~17% is overhead
 
     public static double PUE_PRIVATE = 1.58;
     public static double PUE_HYBRID = 1.34;
@@ -23,7 +23,7 @@ public class Pue {
     public double incrementalEnergyOverhead(double serverEnergy) {
         // Overhead Energy = (PUE - 1) × Server Energy Usage
         //return (pue - 1) * serverEnergy;
-        return (PUE_CLOUD - 1) * serverEnergy;
+        return (PUE_PRIVATE - 1) * serverEnergy;
     }
 
 }
