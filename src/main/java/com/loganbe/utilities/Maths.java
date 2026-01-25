@@ -8,6 +8,8 @@ import java.util.SplittableRandom;
  */
 public class Maths {
 
+    public final static int SCALING_FACTOR = 1_000_000;
+
     public static long twoPointLong(SplittableRandom rng, double desiredMean, long min, long max) {
         if (min >= max) return min;
         double p = (desiredMean - min) / (double)(max - min);
@@ -20,6 +22,12 @@ public class Maths {
         double p = (desiredMean - min) / (max - min);
         p = Math.max(0.0, Math.min(1.0, p));
         return rng.nextDouble() < p ? max : min;
+    }
+
+    public static double quickRound(double number){
+        number = Math.round(number * 100);
+
+        return number / 100;
     }
 
 }
