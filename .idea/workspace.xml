@@ -5,11 +5,13 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="d8dd08df-89c9-4983-aa53-9234db0089b1" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.gitignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/data/infra_templates/scenarioB.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/data/infra_templates/scenarioB.yaml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/com/loganbe/Main.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/loganbe/Main.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/loganbe/application/AbstractAppModel.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/loganbe/application/AbstractAppModel.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/com/loganbe/application/WebApp.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/loganbe/application/WebApp.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/loganbe/power/Power.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/loganbe/power/Power.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/org/cloudsimplus/hosts/HostSimpleFixed.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/cloudsimplus/hosts/HostSimpleFixed.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -64,6 +66,7 @@
     "Maven.CloudSimPlusExperiments [validate].executor": "Run",
     "RunOnceActivity.OpenProjectViewOnStart": "true",
     "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
     "RunOnceActivity.git.unshallow": "true",
     "ToolWindowRun.ShowToolbar": "false",
     "git-widget-placeholder": "main",
@@ -73,6 +76,11 @@
     "project.structure.proportion": "0.15",
     "project.structure.side.proportion": "0.2",
     "settings.editor.selected.configurable": "reference.settingsdialog.project.grazie"
+  },
+  "keyToStringList": {
+    "com.intellij.ide.scratch.ScratchImplUtil$2/New Scratch File": [
+      "TEXT"
+    ]
   }
 }]]></component>
   <component name="RecentsManager">
@@ -87,8 +95,8 @@
       <recent name="com.loganbe.templates" />
     </key>
     <key name="CopyClassDialog.RECENTS_KEY">
-      <recent name="com.loganbe.templates" />
       <recent name="com.loganbe" />
+      <recent name="com.loganbe.templates" />
     </key>
   </component>
   <component name="RunManager" selected="Application.Main">
@@ -107,7 +115,7 @@
     </configuration>
     <configuration name="Main" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
       <envs>
-        <env name="CSV" value="false" />
+        <env name="CSV" value="true" />
       </envs>
       <option name="MAIN_CLASS_NAME" value="com.loganbe.Main" />
       <module name="CloudSimPlusExperiments" />
