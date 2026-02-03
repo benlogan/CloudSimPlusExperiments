@@ -10,10 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.math.BigInteger;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.SplittableRandom;
+import java.util.*;
 
 public class WebApp extends AbstractAppModel {
 
@@ -22,6 +19,9 @@ public class WebApp extends AbstractAppModel {
     private final double arrivalInterval; // e.g. 1.0 = 1 request/sec
 
     private double nextArrivalTime;
+    private int requestCount;
+
+    private int stepCount; // sim step count, in incrementing units (not time)
 
     private final SplittableRandom rng;
 
@@ -56,6 +56,7 @@ public class WebApp extends AbstractAppModel {
      */
     @Override
     public List<Cloudlet> generateWorkloadAtTime(double currentTime, List<Vm> vmList) {
+        stepCount++;
         List<Cloudlet> list = new ArrayList<>();
 
         // if we've passed the next arrival time, generate a new request (per VM)
@@ -70,7 +71,7 @@ public class WebApp extends AbstractAppModel {
 
             // 1 / resourceUtilisation - how many concurrent requests a server can handle, before queueing/dropping - useful for throttling
 
-            int requestCount;
+            requestCount = 0;
             if(USE_MATHS) {
                 // maths! to avoid uniform distribution...
                 int CAP = 16 * vmList.size();
@@ -82,8 +83,7 @@ public class WebApp extends AbstractAppModel {
                 requestCount = (int)(Math.random() * maxRequestCount) + 1;
             }
 
-            //LOGGER.info("Creating Web Request Batch : " + requestCount);
-
+            long meanLength = 0;
             for(int i = 0; i < requestCount; i++) {
                 if(USE_MATHS) {
                     // introducing a 3rd random variable into the mix - cloudlet/request length
@@ -93,9 +93,12 @@ public class WebApp extends AbstractAppModel {
                     long LEN_MAX = 1000;       // your hard cap
                     // keep your intended mean: cloudletLength
                     // max-variance, mean-preserving, strictly within [LEN_MIN, LEN_MAX]:
-                    cloudletLength = Maths.twoPointLong(rng, cloudletLength, LEN_MIN, LEN_MAX);
+                    cloudletLength = Maths.twoPointLong(rng, cloudletLength, LEN_MIN, LEN_MAX); // FIXME don't think this is working!!
+                    //System.out.println("CLOUDLET LENGTH " + cloudletLength);
+                    meanLength += cloudletLength;
                 } // else just leave it alone...
 
+                Map<Long, Long> cloudletLastFinish = new HashMap<>();
                 Cloudlet cloudlet = new CloudletSimpleFixed(cloudletLength, cloudletPes, new UtilizationModelFull());
 
                 final var utilizationModel = new UtilizationModelDynamic(1);
@@ -108,6 +111,25 @@ public class WebApp extends AbstractAppModel {
 
                 cloudlet.addOnStartListener(event -> {
                     //LOGGER.info(event.getTime() + " : Cloudlet Started : " + event.getCloudlet().getId() + " on VM : " + event.getCloudlet().getVm().getId() + " on HOST : " + event.getCloudlet().getVm().getHost().getId());
+                });
+
+                cloudlet.addOnUpdateProcessingListener(event -> {
+                    // every time processing is updated, does this include any work done?
+                    // is work actually done between updates - probably not, I need to simulate that!
+                    // trying to calculate energy efficiency as we go, just need a measure of work done (since last sample)
+                    // no! I must already have this or be doing this for other measures!?
+                    //System.out.println("CLOUDLET : " + event.getCloudlet().getId() + " FINISHED SO FAR : " + event.getCloudlet().getFinishedLengthSoFar());
+                    // bear in mind we only come in here when some work has been done
+                    long accumulatedMips;
+                    if(cloudletLastFinish.get(event.getCloudlet().getId()) != null) {
+                        accumulatedMips = event.getCloudlet().getFinishedLengthSoFar() - cloudletLastFinish.get(event.getCloudlet().getId());
+                    } else {
+                        accumulatedMips = event.getCloudlet().getFinishedLengthSoFar();
+                    }
+                    cloudletLastFinish.put(event.getCloudlet().getId(), event.getCloudlet().getFinishedLengthSoFar());
+                    //System.out.println("ACCUMULATED : " + event.getCloudlet().getId() + " accumulatedMips : " + accumulatedMips);
+                    // I have the delta for a cloudlet, now I can add that to the pot
+                    totalAccumulatedMipsAll = totalAccumulatedMipsAll.add(BigInteger.valueOf(accumulatedMips));
                 });
 
                 // note - any cloudlets that fail, won't trigger this (i.e. we aren't accumulating MIPS that we shouldn't be!)
@@ -147,8 +169,16 @@ public class WebApp extends AbstractAppModel {
                 nextArrivalTime += (int)(Math.random() * 10) + 1;
             }
 
-            //LOGGER.info("nextArrivalTime : " + nextArrivalTime + " gap : " + (nextArrivalTime - currentTime));
+            /*
+            LOGGER.info("Created Web Request Batch : Size : " + requestCount);
+            LOGGER.info("Created Web Request Batch : Mean Length : " + (meanLength / requestCount));
+            LOGGER.info("Created Web Request Batch : Gap : " + (nextArrivalTime - currentTime));
+            LOGGER.info("Created Web Request Batch : nextArrivalTime : " + nextArrivalTime);
+            */
         }
+
+        // quick/easy charting of randomiser effect
+        //System.out.println(stepCount + ";" + requestCount);
 
         return list;
     }

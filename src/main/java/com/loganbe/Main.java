@@ -1,13 +1,17 @@
 package com.loganbe;
 
+import ch.qos.logback.classic.Level;
 import com.loganbe.application.AbstractAppModel;
 import com.loganbe.application.BatchApp;
 import com.loganbe.application.WebApp;
 import com.loganbe.interventions.InterventionSuite;
+import com.loganbe.power.Carbon;
 import com.loganbe.power.Power;
+import com.loganbe.power.Sci;
 import com.loganbe.templates.ServersSpecification;
 import com.loganbe.templates.SimSpecFromFileLegacy;
 import com.loganbe.templates.SimSpecInterfaceHomogenous;
+import com.loganbe.utilities.Maths;
 import com.loganbe.utilities.Sampler;
 import com.loganbe.utilities.Utilities;
 import org.cloudsimplus.allocationpolicies.VmAllocationPolicyRoundRobin;
@@ -32,6 +36,7 @@ import java.math.BigInteger;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static com.loganbe.SimulationConfig.ACCEPTABLE_WORKLOAD_ERROR;
 
@@ -58,7 +63,7 @@ public class Main {
     public static void main(String[] args) {
         Main main = new Main();
 
-        int intendedExecutions = 5;
+        int intendedExecutions = 1;
 
         for(int i = 0; i < intendedExecutions; i++) {
             main.runSimulation(null);
@@ -100,7 +105,7 @@ public class Main {
 
         /*Enables just some level of log messages.
           Make sure to import org.cloudsimplus.util.Log;*/
-        Log.setLevel(ch.qos.logback.classic.Level.INFO); // THERE IS NO DEBUG LOGGING (AND ONLY MINIMAL TRACE)!
+        Log.setLevel(Level.INFO); // THERE IS NO DEBUG LOGGING (AND ONLY MINIMAL TRACE)!
 
         LOGGER.info("Using Simulation Configuration File : file://" + new File(simSpec.getFilename()).getAbsolutePath()); // use of file:// here is simply to make the link clickable in console
 
@@ -191,10 +196,21 @@ public class Main {
         // more granular and much more accurate!
         Map<Long, Double> sumUtil = new HashMap<>();
         Map<Long, Integer> cntUtil = new HashMap<>();
-        Map<Long, List> hostUtil = new HashMap<>();     // timeseries data
+
+        // time series data structures used in sampling, for export/charting
+        Map<Long, List> hostUtil = new HashMap<>();
+        Map<Long, List> hostEnergyRaw = new HashMap<>(); // current hourly energy rate (power) - NOT energy consumed since last sample (that would be much smaller)
+        Map<Long, List> hostEnergy = new HashMap<>();
+        Map<Long, List> hostWork = new HashMap<>();
+        Map<Long, List> hostWorkCumulative = new HashMap<>();
+        Map<Long, List> hostSci = new HashMap<>();
+        Map<Long, List> hostSciCumulative = new HashMap<>(); // cumulative SCI (not point in time) - should converge with average for the sim run
+
+        AtomicLong cumulativeEnergyScaled = new AtomicLong();
+        final BigInteger[] lastAccumulatedMips = {BigInteger.valueOf(0)};
 
         // FIXME - later can set these to the underlying sim variables...
-        final double INTERVAL = 0.1;   // seconds
+        final double INTERVAL = 0.1;   // seconds (every 1/10th second - expect 36,000 readings for the normal 1 hr simulation)
         final double END_TIME = 3600;  // 1 hour
 
         AtomicInteger tickCount = new AtomicInteger();
@@ -205,16 +221,111 @@ public class Main {
             tickCount.getAndIncrement();
 
             for (Host host : datacenter.getHostList()) {
-                double utilization = host.getCpuPercentUtilization();
 
+                // CPU utilisation sampling...
+                double utilisation = host.getCpuPercentUtilization();
                 List<Double> utilTimeSeries;
                 if(hostUtil.get(host.getId()) != null) {
                     utilTimeSeries = hostUtil.get(host.getId());
                 } else {
                     utilTimeSeries = new ArrayList<>();
                 }
-                utilTimeSeries.add(utilization * 100);
+                utilTimeSeries.add(utilisation * 100);
                 hostUtil.put(host.getId(), utilTimeSeries);
+
+                // energy sampling...
+                List<Double> energyRawTimeSeries;
+                if(hostEnergyRaw.get(host.getId()) != null) {
+                    energyRawTimeSeries = hostEnergyRaw.get(host.getId());
+                } else {
+                    energyRawTimeSeries = new ArrayList<>();
+                }
+                double currentEnergyRate = Power.calculateEnergy(host, utilisation); // in wh, but need ws
+                energyRawTimeSeries.add(currentEnergyRate); // energy in use currently (this is really power!)
+                double currentEnergyPerInterval = (currentEnergyRate / 3600) / 10; // NOT per second
+                cumulativeEnergyScaled.getAndAdd(Math.round(currentEnergyPerInterval * Maths.SCALING_FACTOR));
+                //System.out.println("currentEnergyRate = " + currentEnergyRate + " currentEnergyPerInterval = " + currentEnergyPerInterval + " cumulativeEnergyScaled = " + cumulativeEnergyScaled);
+                hostEnergyRaw.put(host.getId(), energyRawTimeSeries);
+
+                // energy sampling...
+                List<Double> energyTimeSeries;
+                if(hostEnergy.get(host.getId()) != null) {
+                    energyTimeSeries = hostEnergy.get(host.getId());
+                } else {
+                    energyTimeSeries = new ArrayList<>();
+                }
+                //energyTimeSeries.add(Power.calculateEnergy(host, utilization)); // not that interesting, will match utilisation curve
+
+                // instead calculate energy efficiency - work done, since last sample
+                // deliberately NOT using app.totalAccumulatedMips - you can't only count completed cloudlets, or you end up with big sampling gaps
+
+                // FIXME - this is slow and inefficient (repeated cloudlet looping of the same cloudlets)
+                // adds 1 minute to the realworld sim time (was 2 seconds)
+                // sometimes much more, over 2 minutes (because workload is higher)
+                // 2 mins for 16% utilisation
+                // 5.5 mins for 32% - can't use this code!
+                /*
+                BigInteger finishedSoFar = BigInteger.valueOf(0);
+                if(host.getVmList() != null && host.getVmList().size() > 0) {
+                    //System.out.println("CLOUDLET LIST SIZE : " + host.getVmList().get(0).getCloudletScheduler().getCloudletSubmittedList().size());
+                    // can't be iterating over every cloudlet each time! but more cloudlets will have been submitted!
+                    // am I looking for the utilisation of what has happened between samples
+                    // or the running total?
+                    // what do I do for utilisation? its current utilisation (since last sample) surely?
+                    /*
+                    for (Cloudlet c : host.getVmList().get(0).getCloudletScheduler().getCloudletSubmittedList()) {
+                        finishedSoFar = finishedSoFar.add(BigInteger.valueOf(c.getFinishedLengthSoFar()));
+                    }*//*
+                    System.out.println("getCloudletExecList size : " + host.getVmList().get(0).getCloudletScheduler().getCloudletExecList().size());
+                    for (CloudletExecution c : host.getVmList().get(0).getCloudletScheduler().getCloudletExecList()) { // what if it has finished!
+                        finishedSoFar = finishedSoFar.add(BigInteger.valueOf(c.getCloudlet().getFinishedLengthSoFar()));
+                    }
+                    System.out.println("finishedSoFar : " + finishedSoFar);
+                    // buggy as hell - if I want mips since last time, probably need to calcualte delta for each cloudlet
+                    // rather than looking at finished length so far and deducting etc - error prone
+                    // what I really want is simply a total accumulated (counted somewhere else)
+                    // that is NOT complete, but all work done. then is this sampling loop I look at the delta.
+                }
+                BigInteger accumulatedMipsDelta = finishedSoFar.subtract(lastAccumulatedMips[0]);
+                System.out.println("accumulatedMipsDelta : " + accumulatedMipsDelta);
+                lastAccumulatedMips[0] = finishedSoFar;
+                energyTimeSeries.add(Power.calculateEnergyEfficiency(host, utilization, accumulatedMipsDelta));
+                */
+
+                // new performant method
+                BigInteger accumulatedMipsDelta = app.totalAccumulatedMipsAll.subtract(lastAccumulatedMips[0]);
+                lastAccumulatedMips[0] = app.totalAccumulatedMipsAll;
+                // pattern; big batches complete together, then large gaps. sometimes a single cloudlet by itself (1000)
+                // is that perhaps interesting - does it demonstrate that computers are more efficient when you break up their work into small chunks?
+                // no good looking at energy efficiency relative to current utilisation - everything might be utilised, but no work completing
+                // note - its got to be work done, not completed - completed makes no sense and will be time-delayed
+                energyTimeSeries.add(Power.calculateEnergyEfficiencyFromHost(host, accumulatedMipsDelta));
+
+                hostEnergy.put(host.getId(), energyTimeSeries);
+
+                // energy utilisation sampling...
+                // work done (MIPS), per unit of energy required/consumed. cumulative.
+                // this is what we are doing above!?
+
+                // work done...
+                List<Double> workDoneTimeSeries;
+                if(hostWork.get(host.getId()) != null) {
+                    workDoneTimeSeries = hostWork.get(host.getId());
+                } else {
+                    workDoneTimeSeries = new ArrayList<>();
+                }
+                workDoneTimeSeries.add(accumulatedMipsDelta.doubleValue());
+                hostWork.put(host.getId(), workDoneTimeSeries);
+
+                // work done (cumulative)...
+                List<Double> workDoneCumTimeSeries;
+                if(hostWorkCumulative.get(host.getId()) != null) {
+                    workDoneCumTimeSeries = hostWorkCumulative.get(host.getId());
+                } else {
+                    workDoneCumTimeSeries = new ArrayList<>();
+                }
+                workDoneCumTimeSeries.add(app.totalAccumulatedMipsAll.doubleValue());
+                hostWorkCumulative.put(host.getId(), workDoneCumTimeSeries);
 
                 // all hosts can appear utilised when they aren't (i.e. because they are simply allocated!) - this doesn't meet my definition of utilisation;
                 // allocation is not what we are typically interested in - it's not CPU utilisation under load
@@ -222,7 +333,7 @@ public class Main {
 
                 double sum = 0;
                 if (sumUtil.get(host.getId()) != null) {
-                    sum = sumUtil.get(host.getId()) + utilization;
+                    sum = sumUtil.get(host.getId()) + utilisation;
                 }
                 int cnt = 0;
                 if (cntUtil.get(host.getId()) != null) {
@@ -230,17 +341,57 @@ public class Main {
                 }
                 sumUtil.put(host.getId(), sum);
                 cntUtil.put(host.getId(), cnt);
-            }
-        });
 
-        // periodically check for new workload (e.g. for web apps, additional cloudlets are added during sim execution)
-        simulation.addOnClockTickListener(evt -> {
+                // SCI sampling
+                List<Double> sciTimeSeries;
+                if(hostSci.get(host.getId()) != null) {
+                    sciTimeSeries = hostSci.get(host.getId());
+                } else {
+                    sciTimeSeries = new ArrayList<>();
+                }
+
+                List<Double> sciCumTimeSeries;
+                if(hostSciCumulative.get(host.getId()) != null) {
+                    sciCumTimeSeries = hostSciCumulative.get(host.getId());
+                } else {
+                    sciCumTimeSeries = new ArrayList<>();
+                }
+
+                double cumulativeEnergyDescaled = cumulativeEnergyScaled.get() / 1_000_000.0; // funky maths is because I'm using a scaled AtomicLong!
+                double operationalCumulative = new Carbon().energyToCarbon(cumulativeEnergyDescaled); // operational emissions per sampling interval! cumulative
+
+                double operational = new Carbon().energyToCarbon(currentEnergyPerInterval);
+
+                double embodiedTotal = 0; // FIXME, for each per server value, use the total embodied for all servers (fudge so that I can only use 1 host for the time series)
+                for (Host hostNested : datacenter.getHostList()) {
+                    HostSimpleFixed hsf = (HostSimpleFixed) hostNested;
+                    embodiedTotal += hsf.embodiedEmissions;
+                }
+                sciTimeSeries.add(Sci.calculateSci(operational, (embodiedTotal/36000), accumulatedMipsDelta.doubleValue()));
+                hostSci.put(host.getId(), sciTimeSeries);
+
+                sciCumTimeSeries.add(Sci.calculateSci(operationalCumulative, embodiedTotal, app.totalAccumulatedMipsAll.doubleValue()));
+                hostSciCumulative.put(host.getId(), sciCumTimeSeries);
+            }
+
+            // generate web workloads (now insider sampler, for better control. can also log/chart easier - FIXME move to above logic, rather than std out)
             double time = simulation.clock();
             List<Cloudlet> newCloudlets = app.generateWorkloadAtTime(time, vmList);
             if (!newCloudlets.isEmpty()) {
                 broker.submitCloudletList(newCloudlets);
             }
         });
+
+        // periodically check for new workload (e.g. for web apps, additional cloudlets are added during sim execution)
+        // this used to be outside the sampling loop, but I'd rather it run every 'step'
+        /*
+        simulation.addOnClockTickListener(evt -> {
+            double time = simulation.clock();
+            List<Cloudlet> newCloudlets = app.generateWorkloadAtTime(time, vmList);
+            if (!newCloudlets.isEmpty()) {
+                broker.submitCloudletList(newCloudlets);
+            }
+        });*/
 
         //simulation.terminateAt(10000); // won't make any difference if you have unfinished cloudlets! (because the events have probably already been processed)
 
@@ -270,41 +421,45 @@ public class Main {
 
         // simulation complete - calculate work done...
 
-        long totalWorkExpected;
+        //long totalWorkExpected;
         // work expected is a function of how long we run the simulation for (not pre-determined)
         long totalWorkExpectedMax; // theoretical max, if you used all cores
 
         if (SimSpecInterfaceHomogenous.class.isAssignableFrom(simSpec.getClass())) { // legacy template
             // important - not theoretical max, but rather how many cores did you ask to use (in configuration)!
-            totalWorkExpected = 1L * simSpec.getHostSpecification().getHost_mips() * simSpec.getHostSpecification().getHosts() * simSpec.getCloudletSpecification().getCloudlet_pes() * SimulationConfig.DURATION; // legacy approach (homogenous)
+            //totalWorkExpected = 1L * simSpec.getHostSpecification().getHost_mips() * simSpec.getHostSpecification().getHosts() * simSpec.getCloudletSpecification().getCloudlet_pes() * SimulationConfig.DURATION; // legacy approach (homogenous)
             totalWorkExpectedMax = 1L * simSpec.getHostSpecification().getHost_mips() * simSpec.getHostSpecification().getHosts() * simSpec.getHostSpecification().getHost_pes() * SimulationConfig.DURATION;
         } else {
-            totalWorkExpected = 0;
+            //totalWorkExpected = 0;
             for (ServersSpecification server : simSpec.getServerSpecifications()) {
                 int mips = ServersSpecification.calculateMips(server.getSpeed()) * simSpec.getCloudletSpecification().getCloudlet_pes(); // how many do you choose to use, not how many cores are there (server.getCpu())
-                totalWorkExpected += mips;
+                //totalWorkExpected += mips;
             }
-            totalWorkExpected = totalWorkExpected * SimulationConfig.DURATION;
+            //totalWorkExpected = totalWorkExpected * SimulationConfig.DURATION;
             totalWorkExpectedMax = 0; // FIXME later
         }
         // FIXME - not accounting for interventions! Not a major issue, just ignore the warning...
-        LOGGER.info("Total Work Expected " + totalWorkExpected + " MIPS");
-        LOGGER.info("Total Work Expected (max) " + totalWorkExpectedMax + " MIPS");
+        //LOGGER.info(totalWorkExpected + " = Total Work Expected (MIPS)");
+        LOGGER.info(totalWorkExpectedMax + " = Total Work Expected (MIPS)"); // used to call this MAX
 
         // this is based on completing cloudlets incrementing a work completed counter, using the cloudlet length, from the cloudlet specification
-        LOGGER.info("Total Work Completed " + app.totalAccumulatedMips + " MIPS");
+        // disabling for now, just noise - they should all be the same!
+        //LOGGER.info(app.totalAccumulatedMips + " = Total Work Completed (MIPS)");
+        //LOGGER.info(app.totalAccumulatedMipsAll + " = Total Work Completed - NEW (MIPS)");
 
         // this is based on the actual completed cloudlet length (not expected or specified), so should be closer to the truth!
         BigInteger actualAccumulatedMips = new BigInteger(String.valueOf(0)); // TOTAL length, across ALL cores
         for (Cloudlet cloudlet : broker.getCloudletFinishedList()) {
             actualAccumulatedMips = actualAccumulatedMips.add(BigInteger.valueOf(cloudlet.getTotalLength()));
         }
-        LOGGER.info("Actual Work Completed " + actualAccumulatedMips + " MIPS");
+        LOGGER.info(actualAccumulatedMips + " = Actual Work Completed (MIPS)");
 
-        calculateWorkDelta(totalWorkExpected, totalWorkExpectedMax, actualAccumulatedMips);
+        //calculateWorkDelta(totalWorkExpected, totalWorkExpectedMax, actualAccumulatedMips);
+        calculateWorkDelta(totalWorkExpectedMax, actualAccumulatedMips);
 
         if(SimulationConfig.DURATION == -1) { // don't bother calculating this - usually using a fixed time frame
-            calculateTimeDelta(totalWorkExpected);
+            //calculateTimeDelta(totalWorkExpected);
+            calculateTimeDelta(totalWorkExpectedMax);
         }
 
         // process / output / visualise results...
@@ -356,33 +511,11 @@ public class Main {
             // FIXME - not doing anything with VM utilisation, it should match host for most of my scenarios (can revisit this later)
         }
 
-        // note this is not using the above averages, but the full time series!
-        StringBuilder csv = new StringBuilder();
-
-        // header
-        csv.append("time");
-        csv.append("host");
-        /* // now just printing the first host only, to reduce processing (they are generally the same)
-        hostUtil.keySet().stream()
-                .sorted()
-                .forEach(hostId -> csv.append(",host").append(hostId)); */
-        csv.append("\n");
-
-        // assume all hosts have the same number of samples
-        int numSteps = hostUtil.values().iterator().next().size();
-
-        // for each timestep, print values for each host
-        for (int t = 0; t < numSteps; t++) {
-            csv.append(t); // or actual time if you have it
-            for (Long hostId : hostUtil.keySet().stream().sorted().toList()) {
-                if(hostId == 0) {
-                    csv.append(";").append(hostUtil.get(hostId).get(t));
-                } // don't bother logging all - the sim will generally distribute load evenly (so they will all be the same)
-            }
-            csv.append("\n");
-        }
-
-        Utilities.writeCsv(csv.toString(), "data/sim_data_util_" + friendlyDate + ".csv");
+        //exportTimeSeriesData(hostEnergy, "energy util", "data/sim_data_energy_util_" + friendlyDate + ".csv");
+        exportTimeSeriesData(hostEnergyRaw, null, "energy",  friendlyDate + "/sim_data_energy_" + friendlyDate + ".csv");
+        exportTimeSeriesData(hostUtil, null, "utilisation", friendlyDate + "/sim_data_util_" + friendlyDate + ".csv");
+        exportTimeSeriesData(hostWork, hostWorkCumulative, "work", friendlyDate + "/sim_data_work_" + friendlyDate + ".csv");
+        exportTimeSeriesData(hostSci, hostSciCumulative, "sci",friendlyDate + "/sim_data_sci_" + friendlyDate + ".csv");
 
         Power power = new Power();
         double totalEnergy = power.calculateTotalEnergy(hostList, hostUtilisation, actualAccumulatedMips);
@@ -398,7 +531,54 @@ public class Main {
         simCount++;
 
         currentTime = System.currentTimeMillis() - currentTime;
-        System.out.println("Simulation Elapsed Time (real world) = " + currentTime/1000 + "s");
+        LOGGER.info("Simulation Elapsed Time (real world) = " + currentTime/1000 + "s");
+    }
+
+    // FIXME cumulative could just be calculated in Excel!
+    public void exportTimeSeriesData(Map<Long, List> map, Map<Long, List> mapCumulative, String name, String fileName) {
+        // note this is not using the above averages, but the full time series!
+        StringBuilder csv = new StringBuilder();
+
+        // header
+        String SEPERATOR = ";";
+        csv.append("time");
+        csv.append(SEPERATOR);
+        csv.append(name);
+        if(mapCumulative != null) {
+            csv.append(SEPERATOR);
+            csv.append(name + " cumulative");
+        }
+        /* // now just printing the first host only, to reduce processing (they are generally the same)
+        hostUtil.keySet().stream()
+                .sorted()
+                .forEach(hostId -> csv.append(",host").append(hostId)); */
+        csv.append("\n");
+
+        // assume all hosts have the same number of samples
+        int numSteps = map.values().iterator().next().size();
+
+        // for each timestep, print values for each host (or just one of them!)
+        for (int t = 0; t < numSteps; t++) {
+            csv.append(t); // or actual time if you have it
+            for (Long hostId : map.keySet().stream().sorted().toList()) {
+                if(hostId == 0) { // always the first host - they will all be the same, normally
+                    if(name.equals("sci")) {
+                        csv.append(SEPERATOR).append(String.format("%.4f", map.get(hostId).get(t)));
+                        if(mapCumulative != null) {
+                            csv.append(SEPERATOR).append(String.format("%.4f", mapCumulative.get(hostId).get(t)));
+                        }
+                    } else {
+                        csv.append(SEPERATOR).append(map.get(hostId).get(t));
+                        if(mapCumulative != null) {
+                            csv.append(SEPERATOR).append(mapCumulative.get(hostId).get(t));
+                        }
+                    }
+                } // don't bother logging all - the sim will generally distribute load evenly (so they will all be the same)
+            }
+            csv.append("\n");
+        }
+
+        Utilities.writeCsv(csv.toString(), "data/" + fileName);
     }
 
     /**
@@ -407,7 +587,8 @@ public class Main {
      * @param actualAccumulatedMips
      * @return
      */
-    public double calculateWorkDelta(long totalWorkExpected, long totalWorkExpectedMax, BigInteger actualAccumulatedMips) {
+    //public double calculateWorkDelta(long totalWorkExpected, long totalWorkExpectedMax, BigInteger actualAccumulatedMips) {
+    public double calculateWorkDelta(long totalWorkExpected, BigInteger actualAccumulatedMips) {
         // acceptable error - 5 minute(s) of processing time (<5%)
         // long acceptableError = simSpec.getHostSpecification().getHost_mips() * simSpec.getHostSpecification().getHosts() * (5 * 60);
         // moving to pure percentage based approach (+ support for heterogeneous hardware)
@@ -417,21 +598,21 @@ public class Main {
         BigInteger expectedBig = BigInteger.valueOf(totalWorkExpected);
         BigInteger delta = expectedBig.subtract(actualAccumulatedMips).abs();
 
-        BigInteger expectedBigMax = BigInteger.valueOf(totalWorkExpectedMax);
-        BigInteger deltaMax = expectedBigMax.subtract(actualAccumulatedMips).abs();
+        //BigInteger expectedBigMax = BigInteger.valueOf(totalWorkExpectedMax);
+        //BigInteger deltaMax = expectedBigMax.subtract(actualAccumulatedMips).abs();
 
         // convert to double for percentage calculation
         double deltaPercentage = delta.doubleValue() / totalWorkExpected * 100;
-        double deltaPercentageMax = deltaMax.doubleValue() / totalWorkExpectedMax * 100;
+        //double deltaPercentageMax = deltaMax.doubleValue() / totalWorkExpectedMax * 100;
 
         if(deltaWork > 0 && deltaPercentage > ACCEPTABLE_WORKLOAD_ERROR) {
-            LOGGER.warn("Unfinished MIPS = " + deltaWork + " (" + deltaPercentage + "%)");
+            LOGGER.warn(deltaWork + " (" + Maths.quickRound(deltaPercentage) + "%) = Unfinished MIPS");
         } else if(deltaWork < 0 && deltaPercentage > ACCEPTABLE_WORKLOAD_ERROR) {
-            LOGGER.warn("Excess MIPS = " + Math.abs(deltaWork) + " (" + deltaPercentage + "%)");
+            LOGGER.warn(Math.abs(deltaWork) + " = Excess Work (MIPS) = " + Maths.quickRound(deltaPercentage) + "%");
         }
 
-        LOGGER.info("Utilisation (based on work complete) : " + (100 - deltaPercentage) + "%");
-        LOGGER.info("Utilisation (using theoretical max ) : " + (100 - deltaPercentageMax) + "%");
+        LOGGER.info(Maths.quickRound((100 - deltaPercentage)) + "% = Utilisation (using work complete)");
+        //LOGGER.info((100 - deltaPercentageMax) + "% = Utilisation (using theoretical max)");
 
         return deltaPercentage;
     }
@@ -613,7 +794,9 @@ public class Main {
         and VmSchedulerSpaceShared for VM scheduling.
         */
 
+        // FIXME critical test - does this change utilisation stats?
         Host host = new HostSimpleFixed(ram, bandwidth, storage, peList);
+        //Host host = new HostSimple(ram, bandwidth, storage, peList); // same effects as commenting out the idle fix - utilisation samples drop to 2!
 
         final var powerModel = new PowerModelHostSimple(Power.MAX_POWER, Power.STATIC_POWER);
         powerModel
@@ -651,7 +834,9 @@ public class Main {
             // remember the host also appears fully allocated all the time (which is wrong, or unexpected, but at least explains why cloudlets aren't being ran in parallel)
             // fix - each VM must have its own CloudletScheduler instance (otherwise parts of the system become confused and start sharing a single VM!)
 
+            simSpec.getScheduler().enableCloudletSubmittedList(); // no idea why this is needed, but I want to use this list later!
             vm.setCloudletScheduler(simSpec.getScheduler());
+            vm.getCloudletScheduler().enableCloudletSubmittedList();
 
             vm.getCloudletScheduler().addOnCloudletResourceAllocationFail(evt -> {
                 LOGGER.info("Terminating Cloudlet : " + evt.getCloudlet().getId());

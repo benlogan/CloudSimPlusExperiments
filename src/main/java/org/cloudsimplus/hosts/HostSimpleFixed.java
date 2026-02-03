@@ -46,11 +46,17 @@ public class HostSimpleFixed extends HostSimple {
         super(ram, bw, storage, peList, activate);
     }
 
+/*
+    // disabling this results in far fewer counts of utilisation (2 vs 1000+) - why is that? but it actually improves the readings!
+    // returning false breaks the official utilisation measure - host always appear busy, so its always 100% (makes sense)
     @Override
     public boolean isIdle() {
         // Prevent the host from becoming idle by always returning false - a workaround to a major utilisation reporting bug
+        // FIXME need an actual fix in here - something that does return true when the machine actually is idle
+        // but what if the machine is never idle - just under utilised. surely a utilisation measure based on idle is fundamentally flawed!?
         return false;
     }
+*/
 
     /**
      * this code is only needed when investigating VM allocation problems
