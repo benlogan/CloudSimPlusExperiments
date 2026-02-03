@@ -5,7 +5,7 @@
 # workload length is -1, so all run continuously until they are interrupted on the 1 hour mark
 
 hostSpecification:
-  hosts: 100
+  hosts: 10
   host_pes: 16
   host_mips: 1000
   host_ram: 2048
@@ -13,7 +13,7 @@ hostSpecification:
   host_storage: 1_000_000
 
 vmSpecification:
-  vms: 100
+  vms: 10
   vm_pes: 16
   vm_mips: 1000
   vm_ram: 2048
@@ -23,9 +23,19 @@ vmSpecification:
 # note - some cloudlet configuration is independent of the abstracted app type
 # the number of cloudlets will generally match the available hardware (for parallel processing)
 cloudletSpecification:
+  # WEB
   cloudlet_pes: 1 # a web request will generally be single-threaded (used to set this to 16, to max out all cores - not realistic)
-  cloudlet_length: 1_000     # WEB
-  #cloudlet_length: 3_550_000  # BATCH
+  cloudlet_length: 1_000
+
+  # BATCH
+  #cloudlet_pes: 16
+  #cloudlet_length: 3_500_000 # overall capacity / server count / core count (minus a bit to ensure the jobs finish). one to each core
+  #cloudlet_length: 1_750_000 # half
+  #cloudlet_length: 2_625_000 # 3/4
+
+  # FIXME maybe randomise the bit I subtract, to simulate randomness in job length? not urgent
+  # what's going on here - moving to 4 and above, to get above 10% utilisation, means nothing gets finished!
+  # think about it - need more than 1 cloudlet
   #cloudlet_length: -1  # this approach is no longer used
   #sim_total_work: -1   # this approach is no longer used (we can always work it out)
   #cloudlets: 100       # this approach is no longer used (now determined by app type)
@@ -33,6 +43,7 @@ cloudletSpecification:
 
 # WEB or BATCH, determines which spec to pick up below
 applicationType: WEB
+#applicationType: BATCH
 
 webAppSpecification:
   arrival_interval: 10
@@ -47,4 +58,4 @@ batchAppSpecification:
   # and then slightly smaller to ensure they all have time to finish
   # otherwise you end up with nothing finishing and zero work done!
   # ((57_600_000 / 16)-50000)
-  cloudlet_count: 100
+  cloudlet_count: 10 # can't go above VM count! 10 would mean each VM gets one, basically
