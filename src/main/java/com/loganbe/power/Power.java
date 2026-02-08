@@ -1,6 +1,5 @@
 package com.loganbe.power;
 
-import com.loganbe.Main;
 import com.loganbe.utilities.Maths;
 import org.cloudsimplus.hosts.Host;
 import org.cloudsimplus.hosts.HostSimpleFixed;

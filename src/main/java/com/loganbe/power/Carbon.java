@@ -7,8 +7,11 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 
+import com.loganbe.utilities.Maths;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * representing the carbon emissions of software, based on energy consumption
@@ -16,8 +19,10 @@ import org.json.JSONObject;
  */
 public class Carbon {
 
+    public static final Logger LOGGER = LoggerFactory.getLogger(Carbon.class.getSimpleName());
+
     // carbon intensity (gCO₂/kWh)
-    private double carbonIntensity = 160; // UK average
+    private static double CARBON_INTENSITY_DEFAULT = 160; // UK average
 
     private static double CARBON_INTENSITY_CLEAN = 40.5;
     private static double CARBON_INTENSITY_MIXED = 214;
@@ -27,16 +32,16 @@ public class Carbon {
      * convert energy (power over time) to carbon (emitted)
      * in kg
      * @param energy (kWh)
-     * @return
+     * @return carbon (kg)
      */
-    public double energyToCarbon(double energy) {
+    public static double energyToCarbon(double energy) {
         //double carbonG = energy * carbonIntensity;
 
         //double carbonG = energy * liveCarbonIntensity();
 
         double carbonG = energy * CARBON_INTENSITY_CLEAN;
 
-        return new BigDecimal(carbonG/1000).setScale(2, RoundingMode.HALF_UP).doubleValue();
+        return Maths.scaleAndRound(carbonG/1000);
         //return carbonG/1000;
     }
 
@@ -44,7 +49,7 @@ public class Carbon {
      * return the current actual, via National Grid API
      * @return
      */
-    public double liveCarbonIntensity() {
+    public static double liveCarbonIntensity() {
         try {
             // define the API endpoint
             String apiUrl = "https://api.carbonintensity.org.uk/intensity";
@@ -78,19 +83,19 @@ public class Carbon {
                 int actual = intensity.getInt("actual");
 
                 // output the actual carbon intensity
-                System.out.println("Actual Carbon Intensity (UK): " + actual + " gCO₂/kWh");
+                LOGGER.info("Actual Carbon Intensity (UK): " + actual + " gCO₂/kWh");
                 return actual;
             } else {
-                System.err.println("Failed to fetch data. HTTP response code: " + conn.getResponseCode());
+                LOGGER.error("Failed to fetch data. HTTP response code: " + conn.getResponseCode());
             }
 
             conn.disconnect();
         } catch (Exception e) {
-            System.err.println("Exception while fetching Carbon Intensity : " + e.getMessage());
+            LOGGER.error("Exception while fetching Carbon Intensity : " + e.getMessage());
             //e.printStackTrace();
         }
-        System.err.println("Failed to fetch Carbon Intensity, using default value!");
-        return carbonIntensity;
+        LOGGER.error("Failed to fetch Carbon Intensity, using default value!");
+        return CARBON_INTENSITY_DEFAULT;
     }
 
 }

@@ -14,6 +14,7 @@ import java.util.stream.Collectors;
  * @author Ben Logan
  */
 public class ExportCsvTable extends AbstractTable {
+
     public ExportCsvTable() {
         this("");
     }

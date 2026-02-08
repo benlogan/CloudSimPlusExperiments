@@ -1,5 +1,7 @@
 package com.loganbe.utilities;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.SplittableRandom;
 
 /*
@@ -24,10 +26,14 @@ public class Maths {
         return rng.nextDouble() < p ? max : min;
     }
 
-    public static double quickRound(double number){
+    public static double quickRound(double number) {
         number = Math.round(number * 100);
 
         return number / 100;
+    }
+
+    public static double scaleAndRound(double number) {
+        return new BigDecimal(number).setScale(2, RoundingMode.HALF_UP).doubleValue();
     }
 
 }

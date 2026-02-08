@@ -9,7 +9,7 @@ import static com.loganbe.SimulationConfig.ACCEPTABLE_WORKLOAD_ERROR;
 
 public class Deltas {
 
-    public static final Logger LOGGER = LoggerFactory.getLogger(FileUtilities.class.getSimpleName());
+    public static final Logger LOGGER = LoggerFactory.getLogger(Deltas.class.getSimpleName());
 
     /**
      * MIPS Before/After Not Equal - incomplete work (or more than expected)
