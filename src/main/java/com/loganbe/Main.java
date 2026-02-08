@@ -11,9 +11,10 @@ import com.loganbe.power.Sci;
 import com.loganbe.templates.ServersSpecification;
 import com.loganbe.templates.SimSpecFromFileLegacy;
 import com.loganbe.templates.SimSpecInterfaceHomogenous;
+import com.loganbe.utilities.Deltas;
 import com.loganbe.utilities.Maths;
 import com.loganbe.utilities.Sampler;
-import com.loganbe.utilities.Utilities;
+import com.loganbe.utilities.FileUtilities;
 import org.cloudsimplus.allocationpolicies.VmAllocationPolicyRoundRobin;
 import org.cloudsimplus.brokers.DatacenterBroker;
 import org.cloudsimplus.brokers.DatacenterBrokerSimple;
@@ -455,7 +456,7 @@ public class Main {
         LOGGER.info(actualAccumulatedMips + " = Actual Work Completed (MIPS)");
 
         //calculateWorkDelta(totalWorkExpected, totalWorkExpectedMax, actualAccumulatedMips);
-        calculateWorkDelta(totalWorkExpectedMax, actualAccumulatedMips);
+        Deltas.calculateWorkDelta(totalWorkExpectedMax, actualAccumulatedMips);
 
         if(SimulationConfig.DURATION == -1) { // don't bother calculating this - usually using a fixed time frame
             //calculateTimeDelta(totalWorkExpected);
@@ -578,43 +579,7 @@ public class Main {
             csv.append("\n");
         }
 
-        Utilities.writeCsv(csv.toString(), "data/" + fileName);
-    }
-
-    /**
-     * MIPS Before/After Not Equal - incomplete work (or more than expected)
-     * @param totalWorkExpected
-     * @param actualAccumulatedMips
-     * @return
-     */
-    //public double calculateWorkDelta(long totalWorkExpected, long totalWorkExpectedMax, BigInteger actualAccumulatedMips) {
-    public double calculateWorkDelta(long totalWorkExpected, BigInteger actualAccumulatedMips) {
-        // acceptable error - 5 minute(s) of processing time (<5%)
-        // long acceptableError = simSpec.getHostSpecification().getHost_mips() * simSpec.getHostSpecification().getHosts() * (5 * 60);
-        // moving to pure percentage based approach (+ support for heterogeneous hardware)
-
-        long deltaWork = BigInteger.valueOf(totalWorkExpected).subtract(actualAccumulatedMips).intValue();
-
-        BigInteger expectedBig = BigInteger.valueOf(totalWorkExpected);
-        BigInteger delta = expectedBig.subtract(actualAccumulatedMips).abs();
-
-        //BigInteger expectedBigMax = BigInteger.valueOf(totalWorkExpectedMax);
-        //BigInteger deltaMax = expectedBigMax.subtract(actualAccumulatedMips).abs();
-
-        // convert to double for percentage calculation
-        double deltaPercentage = delta.doubleValue() / totalWorkExpected * 100;
-        //double deltaPercentageMax = deltaMax.doubleValue() / totalWorkExpectedMax * 100;
-
-        if(deltaWork > 0 && deltaPercentage > ACCEPTABLE_WORKLOAD_ERROR) {
-            LOGGER.warn(deltaWork + " (" + Maths.quickRound(deltaPercentage) + "%) = Unfinished MIPS");
-        } else if(deltaWork < 0 && deltaPercentage > ACCEPTABLE_WORKLOAD_ERROR) {
-            LOGGER.warn(Math.abs(deltaWork) + " = Excess Work (MIPS) = " + Maths.quickRound(deltaPercentage) + "%");
-        }
-
-        LOGGER.info(Maths.quickRound((100 - deltaPercentage)) + "% = Utilisation (using work complete)");
-        //LOGGER.info((100 - deltaPercentageMax) + "% = Utilisation (using theoretical max)");
-
-        return deltaPercentage;
+        FileUtilities.writeCsv(csv.toString(), "data/" + fileName);
     }
 
     public double calculateTimeDelta(long totalWorkExpected) {

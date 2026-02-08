@@ -9,9 +9,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-public class Utilities {
+public class FileUtilities {
 
-    public static final Logger LOGGER = LoggerFactory.getLogger(Utilities.class.getSimpleName());
+    public static final Logger LOGGER = LoggerFactory.getLogger(FileUtilities.class.getSimpleName());
 
     public static void writeCsv(String csvContent, String filePathString) {
         String value = System.getenv("CSV");
