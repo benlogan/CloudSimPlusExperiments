@@ -31,10 +31,22 @@ public class Power {
 
     public static final Logger LOGGER = LoggerFactory.getLogger(Power.class.getSimpleName());
 
+    /**
+     * take a host and its current utilisation and use the power model to calculate current energy consumption
+     * @param host
+     * @param hostUtilisation (0-1)
+     * @return energy (kWh)
+     */
     public static double calculateEnergy(Host host, Double hostUtilisation) {
         return host.getPowerModel().getPower(hostUtilisation);
     }
 
+    /**
+     *
+     * @param host
+     * @param workDone
+     * @return
+     */
     public static double calculateEnergyEfficiencyFromHost(Host host, BigInteger workDone) {
         if(workDone.intValue() == 0) {
             return 0;
@@ -58,10 +70,21 @@ public class Power {
         if(workDone.intValue() == 0) {
             return 0;
         }
+        if(energy == 0) {
+            LOGGER.error("DIVIDE BY ZERO on energy, something has gone wrong - can't calculate energy efficiency with zero energy!");
+            return 0;
+        }
         BigDecimal bd = BigDecimal.valueOf(workDone.doubleValue() / energy);
-        return bd.doubleValue();
+        return Maths.scaleAndRound(bd.doubleValue());
     }
 
+    /**
+     *
+     * @param hostList
+     * @param hostUtilisation
+     * @param workDone
+     * @return energy (Wh NOT kWh)
+     */
     public static double calculateTotalEnergy(List<Host> hostList, Map<Long, Double> hostUtilisation, BigInteger workDone) {
         double totalPower = 0;
         double totalEnergy = 0;
