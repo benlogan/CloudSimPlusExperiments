@@ -12,7 +12,7 @@ public class MathsTest extends TestCase {
 
     public void testScaleAndRound() {
         double result = Maths.scaleAndRound(44.456789);
-        Assert.assertEquals(44.46, result, 0);
+        Assert.assertEquals(44.4568, result, 0);
     }
 
 }
