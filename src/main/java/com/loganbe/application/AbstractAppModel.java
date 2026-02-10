@@ -11,8 +11,10 @@ public class AbstractAppModel implements ApplicationModel {
     public long cloudletLength;
     public int cloudletPes;
 
-    public BigInteger totalAccumulatedMips = BigInteger.valueOf(0);
-    public BigInteger totalAccumulatedMipsAll = BigInteger.valueOf(0); // not just completed, all!
+    public BigInteger totalAccumulatedMi = BigInteger.valueOf(0);
+    public BigInteger totalAccumulatedMiAll = BigInteger.valueOf(0); // not just completed, but everything!
+
+    public BigInteger cloudletCounter = BigInteger.valueOf(0);
 
     public AbstractAppModel() {}
 

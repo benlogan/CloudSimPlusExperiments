@@ -39,7 +39,7 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
-import static com.loganbe.SimulationConfig.ACCEPTABLE_WORKLOAD_ERROR;
+import static com.loganbe.SimulationConfig.*;
 
 public class Main {
 
@@ -78,8 +78,8 @@ public class Main {
     // FIXME need a results object for sim executions and a comparator function
     private void printEnergy() {
         for(int i = 1; i < simCount; i++) {
-            System.out.println("Sim Run : " + i + " energy : " + energyMap.get(i) + "Wh");
-            System.out.println("Sim Run : " + i + " work : " + workMap.get(i) + "(MIPS)");
+            LOGGER.info("Sim Run : " + i + " energy : " + energyMap.get(i) + "Wh");
+            LOGGER.info("Sim Run : " + i + " work : " + workMap.get(i) + "(MIPS)");
         }
         double energySaving = energyMap.get(1) - energyMap.get(2);
 
@@ -112,8 +112,8 @@ public class Main {
 
         simulation = new CloudSimPlus(0.01); // trying to ensure all events are processed, without any misses
 
-        if(SimulationConfig.DURATION > 0) {
-            simulation.terminateAt(SimulationConfig.DURATION);
+        if(DURATION > 0) {
+            simulation.terminateAt(DURATION);
         }
 
         datacenter = createDatacenter();
@@ -208,17 +208,18 @@ public class Main {
         Map<Long, List> hostSciCumulative = new HashMap<>(); // cumulative SCI (not point in time) - should converge with average for the sim run
 
         AtomicLong cumulativeEnergyScaled = new AtomicLong();
+        AtomicLong cumulativeEmbodied = new AtomicLong();
         final BigInteger[] lastAccumulatedMips = {BigInteger.valueOf(0)};
 
-        // FIXME - later can set these to the underlying sim variables...
-        final double INTERVAL = 0.1;   // seconds (every 1/10th second - expect 36,000 readings for the normal 1 hr simulation)
-        final double END_TIME = 3600;  // 1 hour
+        // sampling interval and end time - set these to the underlying sim variables governing sim duration
+        final double TICK_INTERVAL = SCHEDULING_INTERVAL; // 0.1 = every 1/10th second - expect 36,000 readings for the normal 1 hr simulation
+        final double END_TIME = DURATION; // note this is not in ticks, but in time!
 
         AtomicInteger tickCount = new AtomicInteger();
         // used to do this via addOnClockTickListener, but that is NOT consistent
         // you will get a variable number of events, with random load
         // better to use a custom sampler at a fixed interval - for charting etc
-        new Sampler(simulation, INTERVAL, END_TIME, t -> {
+        new Sampler(simulation, TICK_INTERVAL, END_TIME, t -> {
             tickCount.getAndIncrement();
 
             for (Host host : datacenter.getHostList()) {
@@ -294,8 +295,8 @@ public class Main {
                 */
 
                 // new performant method
-                BigInteger accumulatedMipsDelta = app.totalAccumulatedMipsAll.subtract(lastAccumulatedMips[0]);
-                lastAccumulatedMips[0] = app.totalAccumulatedMipsAll;
+                BigInteger accumulatedMipsDelta = app.totalAccumulatedMiAll.subtract(lastAccumulatedMips[0]);
+                lastAccumulatedMips[0] = app.totalAccumulatedMiAll;
                 // pattern; big batches complete together, then large gaps. sometimes a single cloudlet by itself (1000)
                 // is that perhaps interesting - does it demonstrate that computers are more efficient when you break up their work into small chunks?
                 // no good looking at energy efficiency relative to current utilisation - everything might be utilised, but no work completing
@@ -325,7 +326,7 @@ public class Main {
                 } else {
                     workDoneCumTimeSeries = new ArrayList<>();
                 }
-                workDoneCumTimeSeries.add(app.totalAccumulatedMipsAll.doubleValue());
+                workDoneCumTimeSeries.add(app.totalAccumulatedMiAll.doubleValue());
                 hostWorkCumulative.put(host.getId(), workDoneCumTimeSeries);
 
                 // all hosts can appear utilised when they aren't (i.e. because they are simply allocated!) - this doesn't meet my definition of utilisation;
@@ -359,20 +360,44 @@ public class Main {
                 }
 
                 double cumulativeEnergyDescaled = cumulativeEnergyScaled.get() / 1_000_000.0; // funky maths is because I'm using a scaled AtomicLong!
-                double operationalCumulative = new Carbon().energyToCarbon(cumulativeEnergyDescaled); // operational emissions per sampling interval! cumulative
+                double operationalCumulative = Carbon.energyToCarbon(cumulativeEnergyDescaled); // operational emissions per sampling interval! cumulative
 
-                double operational = new Carbon().energyToCarbon(currentEnergyPerInterval);
+                double operational = Carbon.energyToCarbon(currentEnergyPerInterval);
 
                 double embodiedTotal = 0; // FIXME, for each per server value, use the total embodied for all servers (fudge so that I can only use 1 host for the time series)
                 for (Host hostNested : datacenter.getHostList()) {
                     HostSimpleFixed hsf = (HostSimpleFixed) hostNested;
                     embodiedTotal += hsf.embodiedEmissions;
                 }
-                sciTimeSeries.add(Sci.calculateSci(operational, (embodiedTotal/36000), accumulatedMipsDelta.doubleValue()));
+                // amortize embodied emissions;
+                // these are lifetime embodied emissions numbers (raw)
+                // they need to be amortized - shred to the same time-frame as the operational emissions (currently 1hr)
+                // assuming 4 years of operational lifetime...
+                embodiedTotal = Sci.amortizeEmbodiedToSample(embodiedTotal);
+                cumulativeEmbodied.getAndAdd(Math.round(embodiedTotal * Maths.SCALING_FACTOR));
+
+                // NOTE we are calculating TOTAL SCI, for ALL servers, each time (not per server)
+
+                sciTimeSeries.add(Sci.calculateSci(operational, embodiedTotal, accumulatedMipsDelta.doubleValue(), false));
                 hostSci.put(host.getId(), sciTimeSeries);
 
-                sciCumTimeSeries.add(Sci.calculateSci(operationalCumulative, embodiedTotal, app.totalAccumulatedMipsAll.doubleValue()));
+                operationalCumulative = operationalCumulative * datacenter.getHostList().size();
+                double cumulativeEmbodiedTotal = (cumulativeEmbodied.get() / (double) Maths.SCALING_FACTOR); // this is already for all servers! * datacenter.getHostList().size();
+
+                sciCumTimeSeries.add(Sci.calculateSci(operationalCumulative, cumulativeEmbodiedTotal, app.totalAccumulatedMiAll.doubleValue(), false));
                 hostSciCumulative.put(host.getId(), sciCumTimeSeries);
+
+                /*
+                long endTick = Math.round(END_TIME / TICK_INTERVAL);
+                if(tickCount.get() >= endTick) {
+                    System.err.println("operationalCumulative : " + operationalCumulative);
+                    System.err.println("cumulativeEmbodied : " + cumulativeEmbodiedTotal);
+
+                    // although we are printing these per host, they not a per host value!
+                    System.err.println("totalAccumulatedMiAll : " + app.totalAccumulatedMiAll);
+                    System.err.println("totalAccumulatedMi : " + app.totalAccumulatedMi);
+                }
+                */
             }
 
             // generate web workloads (now insider sampler, for better control. can also log/chart easier - FIXME move to above logic, rather than std out)
@@ -405,15 +430,15 @@ public class Main {
         int incomplete = broker.getCloudletSubmittedList().size() - broker.getCloudletFinishedList().size();
         if (incomplete > 0) {
             LOGGER.error("Some Cloudlets Remain Unfinished : " + incomplete);
-            long incompleteMIPS = 0;
+            long incompleteMI = 0;
             for(Cloudlet cloudlet : broker.getCloudletSubmittedList()) {
                 if(cloudlet.isRunning()) {
                     //LOGGER.error("CLOUDLET STILL RUNNING : " + cloudlet.getId());
                     //LOGGER.error("CLOUDLET FINISHED SO FAR : " + cloudlet.getFinishedLengthSoFar());
-                    incompleteMIPS += cloudlet.getFinishedLengthSoFar();
+                    incompleteMI += cloudlet.getFinishedLengthSoFar();
                 }
             }
-            LOGGER.error("MIPS associated with incomplete cloudlets (in flight) : " + incompleteMIPS);
+            LOGGER.error("MI associated with incomplete cloudlets (in flight) : " + incompleteMI);
             // FIXME in theory this should be counted towards 'work completed', but its usually small
         }
 
@@ -429,7 +454,7 @@ public class Main {
         if (SimSpecInterfaceHomogenous.class.isAssignableFrom(simSpec.getClass())) { // legacy template
             // important - not theoretical max, but rather how many cores did you ask to use (in configuration)!
             //totalWorkExpected = 1L * simSpec.getHostSpecification().getHost_mips() * simSpec.getHostSpecification().getHosts() * simSpec.getCloudletSpecification().getCloudlet_pes() * SimulationConfig.DURATION; // legacy approach (homogenous)
-            totalWorkExpectedMax = 1L * simSpec.getHostSpecification().getHost_mips() * simSpec.getHostSpecification().getHosts() * simSpec.getHostSpecification().getHost_pes() * SimulationConfig.DURATION;
+            totalWorkExpectedMax = 1L * simSpec.getHostSpecification().getHost_mips() * simSpec.getHostSpecification().getHosts() * simSpec.getHostSpecification().getHost_pes() * DURATION;
         } else {
             //totalWorkExpected = 0;
             for (ServersSpecification server : simSpec.getServerSpecifications()) {
@@ -440,32 +465,32 @@ public class Main {
             totalWorkExpectedMax = 0; // FIXME later
         }
         // FIXME - not accounting for interventions! Not a major issue, just ignore the warning...
-        //LOGGER.info(totalWorkExpected + " = Total Work Expected (MIPS)");
-        LOGGER.info(totalWorkExpectedMax + " = Total Work Expected (MIPS)"); // used to call this MAX
+        //LOGGER.info(totalWorkExpected + " = Total Work Expected (MI)");
+        LOGGER.info(totalWorkExpectedMax + " = Total Work Expected (MI)"); // used to call this MAX
 
         // this is based on completing cloudlets incrementing a work completed counter, using the cloudlet length, from the cloudlet specification
         // disabling for now, just noise - they should all be the same!
-        //LOGGER.info(app.totalAccumulatedMips + " = Total Work Completed (MIPS)");
-        //LOGGER.info(app.totalAccumulatedMipsAll + " = Total Work Completed - NEW (MIPS)");
+        //LOGGER.info(app.totalAccumulatedMips + " = Total Work Completed (MI)");
+        //LOGGER.info(app.totalAccumulatedMipsAll + " = Total Work Completed - NEW (MI)");
 
         // this is based on the actual completed cloudlet length (not expected or specified), so should be closer to the truth!
         BigInteger actualAccumulatedMips = new BigInteger(String.valueOf(0)); // TOTAL length, across ALL cores
         for (Cloudlet cloudlet : broker.getCloudletFinishedList()) {
             actualAccumulatedMips = actualAccumulatedMips.add(BigInteger.valueOf(cloudlet.getTotalLength()));
         }
-        LOGGER.info(actualAccumulatedMips + " = Actual Work Completed (MIPS)");
+        LOGGER.info(actualAccumulatedMips + " = Actual Work Completed (MI), for " + broker.getCloudletFinishedList().size() + " finished cloudlets");
 
         //calculateWorkDelta(totalWorkExpected, totalWorkExpectedMax, actualAccumulatedMips);
         Deltas.calculateWorkDelta(totalWorkExpectedMax, actualAccumulatedMips);
 
-        if(SimulationConfig.DURATION == -1) { // don't bother calculating this - usually using a fixed time frame
+        if(DURATION == -1) { // don't bother calculating this - usually using a fixed time frame
             //calculateTimeDelta(totalWorkExpected);
             calculateTimeDelta(totalWorkExpectedMax);
         }
 
         // process / output / visualise results...
 
-        final var cloudletFinishedList = broker.getCloudletCreatedList(); // safer than getCloudletFinishedList
+        //final var cloudletFinishedList = broker.getCloudletCreatedList(); // safer than getCloudletFinishedList
 
         // results table to stdout
         //new CloudletsTableBuilderExtended(cloudletFinishedList).build(); // customised version with fixes/enhancements

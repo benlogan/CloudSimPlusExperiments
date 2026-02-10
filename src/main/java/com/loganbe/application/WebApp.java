@@ -114,28 +114,33 @@ public class WebApp extends AbstractAppModel {
                 });
 
                 cloudlet.addOnUpdateProcessingListener(event -> {
-                    // every time processing is updated, does this include any work done?
+                    //LOGGER.info(event.getTime() + " : Cloudlet Updated : " + event.getCloudlet().getId() + " on VM : " + event.getCloudlet().getVm().getId() + " on HOST : " + event.getCloudlet().getVm().getHost().getId() + " finished so far : " + event.getCloudlet().getFinishedLengthSoFar());
+
+                    // every time processing is updated, does this include any work done - no, not necessarily (depends on the interval)
                     // is work actually done between updates - probably not, I need to simulate that!
                     // trying to calculate energy efficiency as we go, just need a measure of work done (since last sample)
-                    // no! I must already have this or be doing this for other measures!?
-                    //System.out.println("CLOUDLET : " + event.getCloudlet().getId() + " FINISHED SO FAR : " + event.getCloudlet().getFinishedLengthSoFar());
-                    // bear in mind we only come in here when some work has been done
-                    long accumulatedMips;
+
+                    long accumulatedMips = 0;
                     if(cloudletLastFinish.get(event.getCloudlet().getId()) != null) {
                         accumulatedMips = event.getCloudlet().getFinishedLengthSoFar() - cloudletLastFinish.get(event.getCloudlet().getId());
                     } else {
                         accumulatedMips = event.getCloudlet().getFinishedLengthSoFar();
                     }
                     cloudletLastFinish.put(event.getCloudlet().getId(), event.getCloudlet().getFinishedLengthSoFar());
-                    //System.out.println("ACCUMULATED : " + event.getCloudlet().getId() + " accumulatedMips : " + accumulatedMips);
-                    // I have the delta for a cloudlet, now I can add that to the pot
-                    totalAccumulatedMipsAll = totalAccumulatedMipsAll.add(BigInteger.valueOf(accumulatedMips));
+                    // we have the delta for a cloudlet, now we can add that to the pot
+
+                    totalAccumulatedMiAll = totalAccumulatedMiAll.add(BigInteger.valueOf(accumulatedMips));
                 });
 
                 // note - any cloudlets that fail, won't trigger this (i.e. we aren't accumulating MIPS that we shouldn't be!)
                 cloudlet.addOnFinishListener(event -> {
-                    //LOGGER.info(event.getTime() + " : Cloudlet Completed : " + event.getCloudlet().getId() + " on VM : " + event.getCloudlet().getVm().getId() + " on HOST : " + event.getCloudlet().getVm().getHost().getId());
-                    totalAccumulatedMips = totalAccumulatedMips.add(BigInteger.valueOf(event.getCloudlet().getTotalLength()));
+                    //LOGGER.info(event.getTime() + " : Cloudlet Completed : " + event.getCloudlet().getId() + " on VM : " + event.getCloudlet().getVm().getId() + " on HOST : " + event.getCloudlet().getVm().getHost().getId() + " length : " + event.getCloudlet().getTotalLength());
+
+                    totalAccumulatedMi = totalAccumulatedMi.add(BigInteger.valueOf(event.getCloudlet().getTotalLength()));
+
+                    // note you do NOT need to add to the 'all' collection again - the final update covers it
+
+                    cloudletCounter = cloudletCounter.add(BigInteger.valueOf(1));
                 });
 
                 // note - cloudlets that can't get resource immediately (over-provisioned), should be queued

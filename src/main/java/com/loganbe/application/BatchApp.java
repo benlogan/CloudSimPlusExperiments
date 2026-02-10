@@ -28,7 +28,7 @@ public class BatchApp extends AbstractAppModel {
             cloudlet.setVm(vmList.get(i));
 
             cloudlet.addOnFinishListener(event -> {
-                totalAccumulatedMips = totalAccumulatedMips.add(BigInteger.valueOf(event.getCloudlet().getTotalLength()));
+                totalAccumulatedMi = totalAccumulatedMi.add(BigInteger.valueOf(event.getCloudlet().getTotalLength()));
             });
 
             list.add(cloudlet);
@@ -40,4 +40,5 @@ public class BatchApp extends AbstractAppModel {
     public List<Cloudlet> generateWorkloadAtTime(double currentTime, List<Vm> vm) {
         return Collections.emptyList(); // batch jobs don’t generate more
     }
+
 }

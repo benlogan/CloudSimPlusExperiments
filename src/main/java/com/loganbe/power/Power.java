@@ -131,10 +131,13 @@ public class Power {
         LOGGER.info("Operation Emissions = " + operational + "gCO₂e");
 
         BigInteger rate = workDone; // let's use the unit of work - its perfect for this (work done)
-        //LOGGER.info("embodiedTotal = " + embodiedTotal);
         //LOGGER.info("rate = " + rate.doubleValue());
-        sci = new Sci().calculateSci(operational, embodiedTotal, rate.doubleValue());
-        LOGGER.info("SCI = " + String.format("%.4f", sci) + "mgCO₂e / MI");
+
+        embodiedTotal = Sci.amortizeEmbodiedToHour(embodiedTotal);
+        //LOGGER.info("embodiedTotal = " + embodiedTotal);
+
+        sci = Sci.calculateSci(operational, embodiedTotal, rate.doubleValue(), true);
+        LOGGER.info("SCI = " + sci + "mgCO₂e / MI");
 
         LOGGER.info("DC Overhead Energy = " + df1.format(new Pue().incrementalEnergyOverhead(totalEnergy)/1000) + "kWh");
 

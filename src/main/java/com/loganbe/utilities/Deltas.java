@@ -36,9 +36,9 @@ public class Deltas {
         //double deltaPercentageMax = deltaMax.doubleValue() / totalWorkExpectedMax * 100;
 
         if(deltaWork > 0 && deltaPercentage > ACCEPTABLE_WORKLOAD_ERROR) {
-            LOGGER.warn(deltaWork + " (" + Maths.quickRound(deltaPercentage) + "%) = Unfinished MIPS");
+            LOGGER.warn(deltaWork + " (" + Maths.quickRound(deltaPercentage) + "%) = Unfinished MI");
         } else if(deltaWork < 0 && deltaPercentage > ACCEPTABLE_WORKLOAD_ERROR) {
-            LOGGER.warn(Math.abs(deltaWork) + " = Excess Work (MIPS) = " + Maths.quickRound(deltaPercentage) + "%");
+            LOGGER.warn(Math.abs(deltaWork) + " = Excess Work (MI) = " + Maths.quickRound(deltaPercentage) + "%");
         }
 
         LOGGER.info(Maths.quickRound((100 - deltaPercentage)) + "% = Utilisation (using work complete)");

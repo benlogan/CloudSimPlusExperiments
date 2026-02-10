@@ -1,5 +1,6 @@
 package com.loganbe.power;
 
+import com.loganbe.utilities.Maths;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -11,7 +12,14 @@ public class Sci {
 
     public static final Logger LOGGER = LoggerFactory.getLogger(Sci.class.getSimpleName());
 
-    public static double calculateSci(double operationalEmissions, double embodiedEmissions, double rate) {
+    /**
+     * calculate the ISO Standard GSF SCI score
+     * @param operationalEmissions (gCO₂e)
+     * @param embodiedEmissions (gCO₂e)
+     * @param rate
+     * @return SCI score (mgCO₂e / rate)
+     */
+    public static double calculateSci(double operationalEmissions, double embodiedEmissions, double rate, boolean log) {
 
         if(rate == 0) {
             //LOGGER.error("Can't calculate SCI with a zero rate! setting a tiny amount of work done!");
@@ -19,21 +27,36 @@ public class Sci {
             //rate = 0.000000001;
         }
 
-        // these are lifetime embodied emissions numbers (raw)
-        // they need to be amortized - shred to the same time-frame as the operational emissions (currently 1hr)
-        // assuming 4 years of operational lifetime...
-        embodiedEmissions = (embodiedEmissions / 4) / 8760; // per hour
-
         double sci = (operationalEmissions + embodiedEmissions) / rate;
-        /*
-        LOGGER.info("Calculating GSF SCI score...");
-        LOGGER.info("operationalEmissions = " + operationalEmissions);
-        LOGGER.info("embodiedEmissions = " + embodiedEmissions);
-        LOGGER.info("rate = " + rate);
-        LOGGER.info("SCI = " + sci);
-        */
+        sci = Maths.scaleAndRound(sci * 1000); // convert to mg - more readable (and round/scale)
 
-        return sci * 1000; // convert to mg - more readable
+        if(log) {
+            LOGGER.info("Calculating GSF SCI score...");
+            LOGGER.info("operationalEmissions = " + operationalEmissions);
+            LOGGER.info("embodiedEmissions = " + embodiedEmissions);
+            LOGGER.info("rate = " + rate);
+            LOGGER.info("SCI = " + sci);
+        }
+
+        return sci;
+    }
+
+    /**
+     * amortize emissions to the normal simulation sampling window (0.1s)
+     * @param emissions
+     * @return
+     */
+    public static double amortizeEmbodiedToSample(double emissions) {
+        return ((emissions / 4) / 8760) / 36_000; // per year, per hour, per sample
+    }
+
+    /**
+     * amortize emissions to a 1 hour window
+     * @param emissions
+     * @return
+     */
+    public static double amortizeEmbodiedToHour(double emissions) {
+        return (emissions / 4) / 8760; // per year, per hour
     }
 
 }

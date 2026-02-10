@@ -33,7 +33,7 @@ public class Maths {
     }
 
     public static double scaleAndRound(double number) {
-        return new BigDecimal(number).setScale(2, RoundingMode.HALF_UP).doubleValue();
+        return new BigDecimal(number).setScale(4, RoundingMode.HALF_UP).doubleValue();
     }
 
 }
