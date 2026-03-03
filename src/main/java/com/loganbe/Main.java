@@ -50,8 +50,7 @@ public class Main {
     private List<Cloudlet> cloudletList;
     private Datacenter datacenter;
 
-    //private SimSpecFromFileLegacy simSpec = new SimSpecFromFileLegacy("data/infra_templates/big_company.yaml");
-    private SimSpecFromFileLegacy simSpec = new SimSpecFromFileLegacy("data/infra_templates/scenarioB.yaml");
+    private SimSpecFromFileLegacy simSpec = new SimSpecFromFileLegacy("data/infra_templates/scenarioC.yaml");
     //private SimSpecFromFile simSpec = new SimSpecFromFile("data/infra_templates/example.yaml");
 
     private int simCount = 1; // how many discrete simulations have completed, NOT how many you want to run
@@ -442,7 +441,7 @@ public class Main {
             // FIXME in theory this should be counted towards 'work completed', but its usually small
         }
 
-        LOGGER.info("Simulation End Time " + simulation.clockInHours() + "h or " + simulation.clockInMinutes() + "m");
+        LOGGER.info("Simulation End Time " + Maths.scaleAndRound(simulation.clockInHours()) + "h or " + Maths.scaleAndRound(simulation.clockInMinutes()) + "m");
         //System.err.println("tickCount (sampling) " + tickCount.get()); // maps roughly to scheduling interval
 
         // simulation complete - calculate work done...

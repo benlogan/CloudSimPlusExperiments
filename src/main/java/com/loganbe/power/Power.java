@@ -127,15 +127,15 @@ public class Power {
         double utilisation = Maths.quickRound((sumUtilisation / hostUtilisation.size())*100);
         LOGGER.info(utilisation + "% = Average Host Utilisation");
 
-        // FIXME new (old) utilisation logic
+        // FIXME utilisation logic
+        /*
         for (final Host host : hostList) {
             //LOGGER.info(host.getCpuPercentUtilization() + "% = OLD Host Utilisation");
             //LOGGER.info(host.getCpuUtilizationStats().getMin() + " = OLD Host Utilisation (min)");
             //LOGGER.info(host.getCpuUtilizationStats().getMax() + " = OLD Host Utilisation (max)");
             LOGGER.info(host.getCpuUtilizationStats().getMean() + " = OLD Host Utilisation (mean)");
             LOGGER.info(host.getCpuUtilizationStats().count() + " = OLD Host Utilisation (count)");
-            // so I haven't really fixed this! why is it always 1 (100%)? could it because of my 'fix' in Host?
-        }
+        }*/
 
         //System.out.println("Total Power = " + df.format(totalPower) + "W");
 

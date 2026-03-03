@@ -1,24 +1,38 @@
 # this is the legacy template format that we've been using to specify simulation infra
 
+# this is basically 1 VM per host and 1 cloudlet per host/vm. 10 hosts and 10 cloudlets (for batch), so everything running in parallel
+
+# workload length is -1, so all run continuously until they are interrupted on the 1 hour mark
+
 hostSpecification:
-  hosts: 1000
-  host_pes: 16
-  host_mips: 1000
-  host_ram: 2048
-  host_bw: 10_000
-  host_storage: 1_000_000
+  hosts: 400                                  # physical hosts
+  host_pes: 16                                # processing element (cores)
+  host_mips: 1000                             # Million Instructions Per Second (MIPS). must also be per CORE (not for the CPU as a whole)
+  host_ram: 2048                              # Megabytes (2GB)
+  host_bw: 10_000                             # Megabits/s (bandwidth) - network comms capacity (N/A for independent simulations?)
+  host_storage: 1_000_000                     # Megabytes (1000GB, or 1TB)
 
 vmSpecification:
-  vms: 1000
+  vms: 400
   vm_pes: 16
-  vm_mips: 1000
+  vm_mips: 1000                               # this is per CORE, not per VM
   vm_ram: 2048
-  vm_bw: 1000
-  vm_storage: 10_000
+  vm_bw: 1000                                 # must be smaller than the host, doesn't impact execution time
+  vm_storage: 10_000                          # 10GB
 
+# note - some cloudlet configuration is independent of the abstracted app type
+# the number of cloudlets will generally match the available hardware (for parallel processing)
 cloudletSpecification:
-  cloudlets: 1000
-  cloudlet_pes: 16
-  cloudlet_utilisation: 1
-  cloudlet_length: -1
-  sim_total_work: -1
+  # WEB
+  cloudlet_pes: 1                             # NOT how many cores to use, rather how many are needed!
+  cloudlet_length: 1_000                      # Million Instructions (MI)
+
+# WEB or BATCH, determines which spec to pick up below
+applicationType: WEB
+#applicationType: BATCH
+
+webAppSpecification:
+  arrival_interval: 10
+
+batchAppSpecification:
+  cloudlet_count: 400

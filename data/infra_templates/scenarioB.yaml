@@ -5,7 +5,7 @@
 # workload length is -1, so all run continuously until they are interrupted on the 1 hour mark
 
 hostSpecification:
-  hosts: 10                                   # physical hosts
+  hosts: 100                                  # physical hosts
   host_pes: 16                                # processing element (cores)
   host_mips: 1000                             # Million Instructions Per Second (MIPS). must also be per CORE (not for the CPU as a whole)
   host_ram: 2048                              # Megabytes (2GB)
@@ -13,7 +13,7 @@ hostSpecification:
   host_storage: 1_000_000                     # Megabytes (1000GB, or 1TB)
 
 vmSpecification:
-  vms: 10
+  vms: 100
   vm_pes: 16
   vm_mips: 1000                               # this is per CORE, not per VM
   vm_ram: 2048
@@ -60,4 +60,4 @@ batchAppSpecification:
   # otherwise you end up with nothing finishing and zero work done!
   # ((57_600_000 / 16)-50000)
   # base on number of available cores, X2 - i.e. will execute 2 batches sequentially
-  cloudlet_count: 10 # can't go above VM count! 10 would mean each VM gets one, basically
+  cloudlet_count: 100 # can't go above VM count! 10 would mean each VM gets one, basically
