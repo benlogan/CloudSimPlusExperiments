@@ -12,6 +12,12 @@ import java.util.Map;
 public class CustomCloudletScheduler extends CloudletSchedulerSpaceShared {
 //public class CustomCloudletScheduler extends CloudletSchedulerTimeShared {
 
+    // note - with time sharing model, the process takes X seconds but all cloudlets run together (i.e. each take twice as long as they normally would)
+    // but with space sharing, they are queued. no change in total execution time, but they are executed in batches - that's not how it is behaving
+    // reverting back to time shared model for now...
+    // CloudletSchedulerTimeShared - DON'T USE, DOESN'T SUPPORT WAITING CLOUDLETS!
+    // CloudletSchedulerSpaceShared - will complete all work - nothing unfinished
+
     /*
     @Override
     public double updateCloudletProcessing(final CloudletExecution cle, final double currentTime) {
