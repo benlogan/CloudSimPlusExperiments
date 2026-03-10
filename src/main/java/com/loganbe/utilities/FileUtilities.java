@@ -16,7 +16,7 @@ public class FileUtilities {
     public static void writeCsv(String csvContent, String filePathString) {
         String value = System.getenv("CSV");
         if(value.equals("false")) {
-            LOGGER.error("Bypassing CSV Export!");
+            LOGGER.warn("CSV Export Disabled");
             return;
         }
 
