@@ -2,8 +2,8 @@ package com.loganbe.application;
 
 import org.cloudsimplus.cloudlets.Cloudlet;
 import org.cloudsimplus.cloudlets.CloudletSimpleFixed;
+import org.cloudsimplus.schedulers.cloudlet.CustomVm;
 import org.cloudsimplus.utilizationmodels.UtilizationModelFull;
-import org.cloudsimplus.vms.Vm;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -21,7 +21,7 @@ public class BatchApp extends AbstractAppModel {
     }
 
     @Override
-    public List<Cloudlet> generateInitialWorkload(List<Vm> vmList) {
+    public List<Cloudlet> generateInitialWorkload(List<CustomVm> vmList) {
         List<Cloudlet> list = new ArrayList<>();
         for (int i = 0; i < cloudletCount; i++) {
             Cloudlet cloudlet = new CloudletSimpleFixed(cloudletLength, cloudletPes, new UtilizationModelFull());
@@ -37,7 +37,7 @@ public class BatchApp extends AbstractAppModel {
     }
 
     @Override
-    public List<Cloudlet> generateWorkloadAtTime(double currentTime, List<Vm> vm) {
+    public List<Cloudlet> generateWorkloadAtTime(double currentTime, List<CustomVm> vm) {
         return Collections.emptyList(); // batch jobs don’t generate more
     }
 

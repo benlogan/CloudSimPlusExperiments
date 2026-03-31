@@ -16,10 +16,10 @@ public class EfficientServers {
     private final double SAMPLE_SIZE = 0.5; // only change half of the servers...
 
     public EfficientServers(Main simulation) {
-        double sample = simulation.hostList.size() * SAMPLE_SIZE;
+        double sample = simulation.datacenter.getHostList().size() * SAMPLE_SIZE;
 
         int count = 0;
-        for(Host host : simulation.hostList) {
+        for(Host host : simulation.datacenter.getHostList()) {
             if(count < sample) {
                 // half the power...
                 final var powerModel = new PowerModelHostSimple(Power.MAX_POWER/2, Power.STATIC_POWER/2);

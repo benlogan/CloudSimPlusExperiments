@@ -3,9 +3,9 @@ package com.loganbe.application;
 import com.loganbe.utilities.Maths;
 import org.cloudsimplus.cloudlets.Cloudlet;
 import org.cloudsimplus.cloudlets.CloudletSimpleFixed;
+import org.cloudsimplus.schedulers.cloudlet.CustomVm;
 import org.cloudsimplus.utilizationmodels.UtilizationModelDynamic;
 import org.cloudsimplus.utilizationmodels.UtilizationModelFull;
-import org.cloudsimplus.vms.Vm;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,6 +28,7 @@ public class WebApp extends AbstractAppModel {
     private final double batchMeanFracRun; // fraction of CAP for batches
     private final double gapMeanRun;       // seconds, within [1,120]
 
+    // quick flag to turn randomisation off/on (off = fixed utilisation)
     private static final boolean USE_MATHS = true;
 
     public WebApp(long cloudletLength, double arrivalInterval, int cloudletPes) {
@@ -44,7 +45,7 @@ public class WebApp extends AbstractAppModel {
     }
 
     @Override
-    public List<Cloudlet> generateInitialWorkload(List<Vm> vmList) {
+    public List<Cloudlet> generateInitialWorkload(List<CustomVm> vmList) {
         return Collections.emptyList(); // starts empty
     }
 
@@ -55,7 +56,7 @@ public class WebApp extends AbstractAppModel {
      * @return
      */
     @Override
-    public List<Cloudlet> generateWorkloadAtTime(double currentTime, List<Vm> vmList) {
+    public List<Cloudlet> generateWorkloadAtTime(double currentTime, List<CustomVm> vmList) {
         stepCount++;
         List<Cloudlet> list = new ArrayList<>();
 
@@ -72,14 +73,14 @@ public class WebApp extends AbstractAppModel {
             // 1 / resourceUtilisation - how many concurrent requests a server can handle, before queueing/dropping - useful for throttling
 
             requestCount = 0;
+            int maxRequestCount = 16 * vmList.size();
             if(USE_MATHS) {
                 // maths! to avoid uniform distribution...
-                int CAP = 16 * vmList.size();
-                double desiredMeanBatch = batchMeanFracRun * CAP;
-                requestCount = (int) Maths.twoPointLong(rng, desiredMeanBatch, 1, CAP);
+                double desiredMeanBatch = batchMeanFracRun * maxRequestCount;
+                requestCount = (int) Maths.twoPointLong(rng, desiredMeanBatch, 1, maxRequestCount);
+                //requestCount = maxRequestCount;
             } else {
                 // old approach - uniform distribution across multiple sim runs - no good
-                int maxRequestCount = 16 * vmList.size();
                 requestCount = (int)(Math.random() * maxRequestCount) + 1;
             }
 
@@ -94,6 +95,7 @@ public class WebApp extends AbstractAppModel {
                     // keep your intended mean: cloudletLength
                     // max-variance, mean-preserving, strictly within [LEN_MIN, LEN_MAX]:
                     cloudletLength = Maths.twoPointLong(rng, cloudletLength, LEN_MIN, LEN_MAX); // FIXME don't think this is working!!
+                    //cloudletLength = LEN_MAX;
                     //System.out.println("CLOUDLET LENGTH " + cloudletLength);
                     meanLength += cloudletLength;
                 } // else just leave it alone...
@@ -169,6 +171,7 @@ public class WebApp extends AbstractAppModel {
                 double GAP_MIN = 1.0;
                 double GAP_MAX = 120.0;
                 double gap = Maths.twoPointDouble(rng, gapMeanRun, GAP_MIN, GAP_MAX);
+                //double gap = 1.8;
                 nextArrivalTime += gap;
             } else {
                 nextArrivalTime += (int)(Math.random() * 10) + 1;

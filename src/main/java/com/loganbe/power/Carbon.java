@@ -1,7 +1,5 @@
 package com.loganbe.power;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;

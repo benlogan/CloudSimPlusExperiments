@@ -20,10 +20,10 @@ public class PowerfulServers {
     private final double PROCESSING_POWER = 2;  // doubling processing capacity...
 
     public PowerfulServers(Main simulation) {
-        double sample = simulation.hostList.size() * SAMPLE_SIZE;
+        double sample = simulation.datacenter.getHostList().size() * SAMPLE_SIZE;
 
         int count = 0;
-        for(Host host : simulation.hostList) {
+        for(Host host : simulation.datacenter.getHostList()) {
             if(count < sample) {
 
                 for (Pe pe : host.getPeList()) {

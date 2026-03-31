@@ -5,18 +5,18 @@
 # workload length is -1, so all run continuously until they are interrupted on the 1 hour mark
 
 hostSpecification:
-  hosts: 400                                  # physical hosts
+  hosts: 100                                  # physical hosts
   host_pes: 16                                # processing element (cores)
   host_mips: 1000                             # Million Instructions Per Second (MIPS). must also be per CORE (not for the CPU as a whole)
-  host_ram: 2048                              # Megabytes (2GB)
+  host_ram: 32768                             # Megabytes (32GB)
   host_bw: 10_000                             # Megabits/s (bandwidth) - network comms capacity (N/A for independent simulations?)
   host_storage: 1_000_000                     # Megabytes (1000GB, or 1TB)
 
 vmSpecification:
-  vms: 400
+  vms: 100
   vm_pes: 16
   vm_mips: 1000                               # this is per CORE, not per VM
-  vm_ram: 2048
+  vm_ram: 32768
   vm_bw: 1000                                 # must be smaller than the host, doesn't impact execution time
   vm_storage: 10_000                          # 10GB
 
@@ -32,7 +32,7 @@ applicationType: WEB
 #applicationType: BATCH
 
 webAppSpecification:
-  arrival_interval: 10
+  arrival_interval: 20
 
 batchAppSpecification:
   cloudlet_count: 400

@@ -1,7 +1,7 @@
 package com.loganbe.application;
 
 import org.cloudsimplus.cloudlets.Cloudlet;
-import org.cloudsimplus.vms.Vm;
+import org.cloudsimplus.schedulers.cloudlet.CustomVm;
 
 import java.math.BigInteger;
 import java.util.List;
@@ -19,12 +19,12 @@ public class AbstractAppModel implements ApplicationModel {
     public AbstractAppModel() {}
 
     @Override
-    public List<Cloudlet> generateInitialWorkload(List<Vm> vmList) {
+    public List<Cloudlet> generateInitialWorkload(List<CustomVm> vmList) {
         return List.of();
     }
 
     @Override
-    public List<Cloudlet> generateWorkloadAtTime(double currentTime, List<Vm> vmList) {
+    public List<Cloudlet> generateWorkloadAtTime(double currentTime, List<CustomVm> vmList) {
         return List.of();
     }
 
