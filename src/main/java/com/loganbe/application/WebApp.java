@@ -29,7 +29,7 @@ public class WebApp extends AbstractAppModel {
     private final double gapMeanRun;       // seconds, within [1,120]
 
     // quick flag to turn randomisation off/on (off = fixed utilisation)
-    private static final boolean USE_MATHS = true;
+    private static final boolean USE_MATHS = false;
 
     public WebApp(long cloudletLength, double arrivalInterval, int cloudletPes) {
         this.cloudletLength = cloudletLength;
@@ -78,27 +78,30 @@ public class WebApp extends AbstractAppModel {
                 // maths! to avoid uniform distribution...
                 double desiredMeanBatch = batchMeanFracRun * maxRequestCount;
                 requestCount = (int) Maths.twoPointLong(rng, desiredMeanBatch, 1, maxRequestCount);
-                //requestCount = maxRequestCount;
             } else {
                 // old approach - uniform distribution across multiple sim runs - no good
-                requestCount = (int)(Math.random() * maxRequestCount) + 1;
+                // requestCount = (int)(Math.random() * maxRequestCount) + 1;
+                requestCount = maxRequestCount;
             }
 
-            long meanLength = 0;
+            //long meanLength = 0;
             for(int i = 0; i < requestCount; i++) {
-                if(USE_MATHS) {
-                    // introducing a 3rd random variable into the mix - cloudlet/request length
+                // hard endpoints you allow;
+                long LEN_MIN = 1;          // or whatever minimum you want
+                long LEN_MAX = 1000;       // your hard cap
 
-                    // hard endpoints you allow;
-                    long LEN_MIN = 1;          // or whatever minimum you want
-                    long LEN_MAX = 1000;       // your hard cap
+                if(USE_MATHS) {
+                    // introducing a 3rd random variable - cloudlet/request length
+
                     // keep your intended mean: cloudletLength
                     // max-variance, mean-preserving, strictly within [LEN_MIN, LEN_MAX]:
-                    cloudletLength = Maths.twoPointLong(rng, cloudletLength, LEN_MIN, LEN_MAX); // FIXME don't think this is working!!
-                    //cloudletLength = LEN_MAX;
-                    //System.out.println("CLOUDLET LENGTH " + cloudletLength);
-                    meanLength += cloudletLength;
-                } // else just leave it alone...
+                    cloudletLength = Maths.twoPointLong(rng, cloudletLength, LEN_MIN, LEN_MAX); // FIXME don't think this is working!
+
+                    //meanLength += cloudletLength;
+                } else {
+                    cloudletLength = LEN_MAX;
+                }
+                //System.out.println("CLOUDLET LENGTH " + cloudletLength);
 
                 Map<Long, Long> cloudletLastFinish = new HashMap<>();
                 Cloudlet cloudlet = new CloudletSimpleFixed(cloudletLength, cloudletPes, new UtilizationModelFull());
@@ -167,15 +170,16 @@ public class WebApp extends AbstractAppModel {
                 because of uniform distribution within the randomness (on average, a similar gap will be applied)
                 same applies to the batch randomness - it will be similar for multiple runs, using the current approach
              */
+            double gap;
             if(USE_MATHS) {
                 double GAP_MIN = 1.0;
                 double GAP_MAX = 120.0;
-                double gap = Maths.twoPointDouble(rng, gapMeanRun, GAP_MIN, GAP_MAX);
-                //double gap = 1.8;
-                nextArrivalTime += gap;
+                gap = Maths.twoPointDouble(rng, gapMeanRun, GAP_MIN, GAP_MAX);
             } else {
-                nextArrivalTime += (int)(Math.random() * 10) + 1;
+                //nextArrivalTime += (int)(Math.random() * 10) + 1;
+                gap = 1.8;
             }
+            nextArrivalTime += gap;
 
             /*
             LOGGER.info("Created Web Request Batch : Size : " + requestCount);
