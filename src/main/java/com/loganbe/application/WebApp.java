@@ -112,7 +112,9 @@ public class WebApp extends AbstractAppModel {
                 cloudlet.setUtilizationModelRam(utilizationModelMemory);
                 cloudlet.setUtilizationModelBw(utilizationModelMemory);
 
-                //cloudlet.setVm(vm);
+                // assign the cloudlet to a VM in round-robin fashion (or comment out and let the broker handle it)
+                //int vmIndex = i % vmList.size();
+                //cloudlet.setVm(vmList.get(vmIndex));
 
                 cloudlet.addOnStartListener(event -> {
                     //LOGGER.info(event.getTime() + " : Cloudlet Started : " + event.getCloudlet().getId() + " on VM : " + event.getCloudlet().getVm().getId() + " on HOST : " + event.getCloudlet().getVm().getHost().getId());

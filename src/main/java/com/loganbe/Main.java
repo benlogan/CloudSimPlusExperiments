@@ -20,6 +20,7 @@ import org.cloudsimplus.datacenters.Datacenter;
 import org.cloudsimplus.hosts.Host;
 import org.cloudsimplus.hosts.HostSimpleFixed;
 import org.cloudsimplus.schedulers.cloudlet.CustomVm;
+import org.cloudsimplus.vms.Vm;
 import org.cloudsimplus.util.Log;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -121,7 +122,31 @@ public class Main {
         // remember that later you need to periodically add new cloudlets (in the webapp scenario) - you start with nothing!
 
         broker.submitVmList(vmList);
-        broker.submitCloudletList(cloudletList);
+
+        // at t=0, workload generation may run before VM_CREATE_ACK events are processed.
+        // keep cloudlets in a pending queue and submit only when their target VM exists,
+        // avoiding broker postponement warnings caused by startup event ordering.
+        final List<Cloudlet> pendingCloudlets = new ArrayList<>(cloudletList);
+        final Runnable submitReadyCloudlets = () -> {
+            if (pendingCloudlets.isEmpty()) {
+                return;
+            }
+
+            final List<Cloudlet> ready = new ArrayList<>();
+            final List<Vm> createdVms = broker.getVmCreatedList();
+            for (final Cloudlet cloudlet : pendingCloudlets) {
+                final Vm targetVm = cloudlet.getVm();
+                final boolean canSubmit = targetVm == Vm.NULL ? !createdVms.isEmpty() : createdVms.contains(targetVm);
+                if (canSubmit) {
+                    ready.add(cloudlet);
+                }
+            }
+
+            if (!ready.isEmpty()) {
+                pendingCloudlets.removeAll(ready);
+                broker.submitCloudletList(ready);
+            }
+        };
 
         LOGGER.info("getSchedulingInterval : {}s", datacenter.getSchedulingInterval());
 
@@ -369,8 +394,9 @@ public class Main {
             double time = simulation.clock();
             List<Cloudlet> newCloudlets = app.generateWorkloadAtTime(time, vmList);
             if (!newCloudlets.isEmpty()) {
-                broker.submitCloudletList(newCloudlets);
+                pendingCloudlets.addAll(newCloudlets);
             }
+            submitReadyCloudlets.run();
         });
 
         // periodically check for new workload (e.g. for web apps, additional cloudlets are added during sim execution)
