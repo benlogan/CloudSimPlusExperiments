@@ -25,7 +25,7 @@ public class Pue {
     public static double incrementalEnergyOverhead(double serverEnergy) {
         // Overhead Energy = (PUE - 1) × Server Energy Usage
         //return (pue - 1) * serverEnergy;
-        double energyOverhead = (PUE_PRIVATE - 1) * serverEnergy;
+        double energyOverhead = (PUE_CLOUD - 1) * serverEnergy;
         return Maths.scaleAndRound(energyOverhead);
     }
 
