@@ -6,7 +6,7 @@ import java.util.Map;
 public class ExportTimeSeriesCsv {
 
     // FIXME cumulative could just be calculated in Excel!
-    public static void exportTimeSeriesData(Map<Long, List> map, Map<Long, List> mapCumulative, String name, String fileName) {
+    public static void exportTimeSeriesData(Map<Long, ? extends List<?>> map, Map<Long, ? extends List<?>> mapCumulative, String name, String fileName) {
         // note this is not using the above averages, but the full time series!
         StringBuilder csv = new StringBuilder();
 
@@ -33,13 +33,14 @@ public class ExportTimeSeriesCsv {
             csv.append(t); // or actual time if you have it
             for (Long hostId : map.keySet().stream().sorted().toList()) {
                 if(hostId == 0) { // always the first host - they will all be the same, normally
+                    final Object value = map.get(hostId).get(t);
                     if(name.equals("sci")) {
-                        csv.append(SEPERATOR).append(String.format("%.4f", map.get(hostId).get(t)));
+                        csv.append(SEPERATOR).append(String.format("%.4f", ((Number) value).doubleValue()));
                         if(mapCumulative != null) {
-                            csv.append(SEPERATOR).append(String.format("%.4f", mapCumulative.get(hostId).get(t)));
+                            csv.append(SEPERATOR).append(String.format("%.4f", ((Number) mapCumulative.get(hostId).get(t)).doubleValue()));
                         }
                     } else {
-                        csv.append(SEPERATOR).append(map.get(hostId).get(t));
+                        csv.append(SEPERATOR).append(value);
                         if(mapCumulative != null) {
                             csv.append(SEPERATOR).append(mapCumulative.get(hostId).get(t));
                         }

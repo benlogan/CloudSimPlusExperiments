@@ -81,7 +81,8 @@ public class Power {
     /**
      *
      * @param hostList
-     * @param hostUtilisation
+     * @param hostUtilisation - note this function relies on whatever utilisation approach was chosen earlier -
+     *                          it simply uses an average of the utilisation values calculated during sampling
      * @param workDone
      * @return energy (Wh NOT kWh)
      */
@@ -92,22 +93,7 @@ public class Power {
         double embodiedTotal = 0;
         double sumUtilisation = 0;
         for (final Host host : hostList) {
-            // framework method for utilisation (NOT reliable - overstates utilisation significantly)
-            /*
-            final HostResourceStats cpuStats = host.getCpuUtilizationStats();
-            final double utilizationPercentMean = cpuStats.getMean();
 
-            System.out.println("host : " + host.getId() + ". utilizationPercentMean = " + utilizationPercentMean);
-
-            List<Vm> finishedVMs = host.getVmCreatedList();
-            for (Vm vm : finishedVMs) {
-                final double vmUtilizationPercentMean = vm.getCpuUtilizationStats().getMean();
-                System.out.println("vm : " + vm.getId() + ". vmUtilizationPercentMean = " + vmUtilizationPercentMean);
-            }
-            final double watts = host.getPowerModel().getPower(utilizationPercentMean);
-            */
-
-            // custom utilisation - critical contribution
             double utilisation = hostUtilisation.get(host.getId());
             sumUtilisation += utilisation;
             double watts = 0;
@@ -132,16 +118,6 @@ public class Power {
 
         double utilisation = Maths.quickRound((sumUtilisation / hostUtilisation.size())*100);
         LOGGER.info(utilisation + "% = Average Host Utilisation");
-
-        // FIXME utilisation logic
-        /*
-        for (final Host host : hostList) {
-            //LOGGER.info(host.getCpuPercentUtilization() + "% = OLD Host Utilisation");
-            //LOGGER.info(host.getCpuUtilizationStats().getMin() + " = OLD Host Utilisation (min)");
-            //LOGGER.info(host.getCpuUtilizationStats().getMax() + " = OLD Host Utilisation (max)");
-            LOGGER.info(host.getCpuUtilizationStats().getMean() + " = OLD Host Utilisation (mean)");
-            LOGGER.info(host.getCpuUtilizationStats().count() + " = OLD Host Utilisation (count)");
-        }*/
 
         //System.out.println("Total Power = " + df.format(totalPower) + "W");
 
