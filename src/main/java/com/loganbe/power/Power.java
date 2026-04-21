@@ -110,7 +110,13 @@ public class Power {
             // custom utilisation - critical contribution
             double utilisation = hostUtilisation.get(host.getId());
             sumUtilisation += utilisation;
-            final double watts = host.getPowerModel().getPower(utilisation);
+            double watts = 0;
+            try {
+                watts = host.getPowerModel().getPower(utilisation);
+            } catch (IllegalArgumentException e) {
+                LOGGER.warn("Problem with Utilisation value : ", utilisation);
+                e.printStackTrace();
+            }
 
             totalPower += watts;
 
