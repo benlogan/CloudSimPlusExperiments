@@ -15,11 +15,11 @@ import java.util.Map;
 public class Power {
 
     // defines the power a Host uses, even if it's idle (in Watts)
-    public static final double STATIC_POWER = 520;
-    // idle power ~60–70% of max is typical for servers (we'll use 65% of 800W = 520W)
+    public static final double STATIC_POWER = 470;
+    // idle power ~60–70% of max is typical for servers (e.g. 65% of 800W = 520W)
 
     // max power a Host uses (in Watts)
-    public static final int MAX_POWER = 800;
+    public static final int MAX_POWER = 1200;
 
     // host power consumption (in Watts) during startup
     public static final double HOST_START_UP_POWER = 5;
@@ -88,6 +88,7 @@ public class Power {
      */
     public static double calculateTotalEnergy(List<Host> hostList, Map<Long, Double> hostUtilisation, BigInteger workDone) {
         double totalPower = 0;
+        double maxPower = 0;
         double totalEnergy = 0;
         double upTimeHours = 0;
         double embodiedTotal = 0;
@@ -105,6 +106,7 @@ public class Power {
             }
 
             totalPower += watts;
+            maxPower += Power.MAX_POWER;
 
             upTimeHours = host.getTotalUpTime() / 60 / 60;
             double energy = watts * upTimeHours;
@@ -122,6 +124,10 @@ public class Power {
         //System.out.println("Total Power = " + df.format(totalPower) + "W");
 
         LOGGER.info("Energy Consumption = " + df.format(totalPower) + "Wh (i.e. per hour)");
+
+        LOGGER.info("Max Energy Consumption = " + df.format(maxPower) + "Wh (i.e. per hour)");
+
+        LOGGER.info("Power Utilisation = " + ((totalPower / maxPower) * 100) + "%");
 
         DecimalFormat df1 = new DecimalFormat("#.##");
         LOGGER.info("Total Compute Energy = " + df.format(totalEnergy) + "Wh (" + df1.format(totalEnergy/1000) + "kWh) consumed in " + df1.format(upTimeHours) + "hr(s)");
