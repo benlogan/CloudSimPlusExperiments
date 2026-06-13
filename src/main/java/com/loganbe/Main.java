@@ -41,7 +41,7 @@ public class Main {
     public List<CustomVm> vmList;
     private List<Cloudlet> cloudletList;
 
-    private SimSpecFromFileLegacy simSpec = new SimSpecFromFileLegacy("data/infra_templates/scenarioC.yaml");
+    private SimSpecFromFileLegacy simSpec = new SimSpecFromFileLegacy("data/infra_templates/scenarioB.yaml");
     //private SimSpecFromFile simSpec = new SimSpecFromFile("data/infra_templates/example.yaml");
 
     final static int SIM_COUNT = 1;     // how many sim iterations
@@ -311,7 +311,7 @@ public class Main {
 
         ExportTimeSeriesCsv.exportTimeSeriesData(metricsSampler.getHostEnergy(), null, "energy",  friendlyDate + "/sim_data_energy_" + friendlyDate);
         ExportTimeSeriesCsv.exportTimeSeriesData(metricsSampler.getHostUtil(), null, "utilisation", friendlyDate + "/sim_data_util_" + friendlyDate);
-        //ExportTimeSeriesCsv.exportTimeSeriesData(metricsSampler.getHostUtilAllocation(), null, "utilisation", friendlyDate + "/sim_data_util_allocation_" + friendlyDate);
+        ExportTimeSeriesCsv.exportTimeSeriesData(metricsSampler.getHostUtilAllocation(), null, "utilisation (allocation)", friendlyDate + "/sim_data_util_allocation_" + friendlyDate);
         ExportTimeSeriesCsv.exportTimeSeriesData(metricsSampler.getHostWork(), metricsSampler.getHostWorkCumulative(), "work", friendlyDate + "/sim_data_work_" + friendlyDate);
         ExportTimeSeriesCsv.exportTimeSeriesData(metricsSampler.getHostSci(), metricsSampler.getHostSciCumulative(), "sci",friendlyDate + "/sim_data_sci_" + friendlyDate);
 
