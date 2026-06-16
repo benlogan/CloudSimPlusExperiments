@@ -311,7 +311,8 @@ public class Main {
 
         ExportTimeSeriesCsv.exportTimeSeriesData(metricsSampler.getHostEnergy(), null, "energy",  friendlyDate + "/sim_data_energy_" + friendlyDate);
         ExportTimeSeriesCsv.exportTimeSeriesData(metricsSampler.getHostUtil(), null, "utilisation", friendlyDate + "/sim_data_util_" + friendlyDate);
-        ExportTimeSeriesCsv.exportTimeSeriesData(metricsSampler.getHostUtilAllocation(), null, "utilisation (allocation)", friendlyDate + "/sim_data_util_allocation_" + friendlyDate);
+        // unreliable method; removing this distracting data
+        //ExportTimeSeriesCsv.exportTimeSeriesData(metricsSampler.getHostUtilAllocation(), null, "utilisation (allocation)", friendlyDate + "/sim_data_util_allocation_" + friendlyDate);
         ExportTimeSeriesCsv.exportTimeSeriesData(metricsSampler.getHostWork(), metricsSampler.getHostWorkCumulative(), "work", friendlyDate + "/sim_data_work_" + friendlyDate);
         ExportTimeSeriesCsv.exportTimeSeriesData(metricsSampler.getHostSci(), metricsSampler.getHostSciCumulative(), "sci",friendlyDate + "/sim_data_sci_" + friendlyDate);
 
