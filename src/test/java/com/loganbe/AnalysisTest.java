@@ -1,5 +1,6 @@
 package com.loganbe;
 
+import com.loganbe.utilities.DeltaHelper;
 import junit.framework.TestCase;
 
 import java.util.HashMap;
@@ -20,7 +21,7 @@ public class AnalysisTest extends TestCase {
                 put(2, 1.0);
             }
         };
-        Analysis.calculateDeltas(energyMap, workMap);
+        DeltaHelper.calculateDeltas(energyMap, workMap);
     }
 
 }
