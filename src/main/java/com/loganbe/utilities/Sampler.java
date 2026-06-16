@@ -24,7 +24,18 @@ public class Sampler extends CloudSimEntity {
     @Override
     protected void startInternal() {
         // first sample at t=0; use 'interval' instead if you want to skip t=0
-        schedule(0.0, SAMPLING);   // schedule-to-self
+        //schedule(0.0, SAMPLING); // schedule-to-self
+        //schedule(interval, SAMPLING); // schedule-to-self // doesn't fix the issue
+
+        // copilot assisted fix, to prevent sampling problems seen at the 0.5s interval
+
+        // schedule the first sample slightly after t=0 to reduce the chance of
+        // sampling before cloudlet update events at the same timestamp.
+        // use a fraction of the interval but never less than 100 microseconds.
+
+        final double first = Math.max(1e-4, interval / 10.0);
+        schedule(first, SAMPLING); // schedule-to-self
+        // this alone (with no SamplingMetrics changes) seems to fix the 0.5s issue
     }
 
     @Override
