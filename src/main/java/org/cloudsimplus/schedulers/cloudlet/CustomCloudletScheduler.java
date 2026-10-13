@@ -1,15 +1,30 @@
 package org.cloudsimplus.schedulers.cloudlet;
 
+import com.loganbe.SimulationConfig;
+import org.cloudsimplus.cloudlets.Cloudlet;
 import org.cloudsimplus.cloudlets.CloudletExecution;
 import org.cloudsimplus.vms.Vm;
 
+import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * using space shared - there will only be 1 cloudlet per VM
  */
 public class CustomCloudletScheduler extends CloudletSchedulerSpaceShared {
+    private static final Field RETURNED_CLOUDLETS_FIELD;
+
+    static {
+        try {
+            RETURNED_CLOUDLETS_FIELD = CloudletSchedulerAbstract.class.getDeclaredField("cloudletReturnedList");
+            RETURNED_CLOUDLETS_FIELD.setAccessible(true);
+        } catch (NoSuchFieldException e) {
+            throw new ExceptionInInitializerError(e);
+        }
+    }
+
 //public class CustomCloudletScheduler extends CloudletSchedulerTimeShared {
 
     // note - with time sharing model, the process takes X seconds but all cloudlets run together (i.e. each take twice as long as they normally would)
@@ -155,9 +170,43 @@ public class CustomCloudletScheduler extends CloudletSchedulerSpaceShared {
         return super.updateCloudletProcessing(cle, currentTime);
     }
 
+    @Override
+    protected void cloudletFinish(final CloudletExecution cle) {
+        super.cloudletFinish(cle);
+        if (SimulationConfig.PRUNE_CLOUDLET_SCHEDULER_HISTORY_ON_FINISH) {
+            pruneCloudletHistory(cle.getCloudlet());
+        }
+    }
+
     private Map<Long, Double> hostElapsedTime = new HashMap<>();
 
     public double getHostElapsedTime(long hostId) {
         return hostElapsedTime.getOrDefault(hostId, 0.0);
+    }
+
+    /**
+     * Removes a finished cloudlet from scheduler history collections that otherwise keep strong references.
+     */
+    public void pruneCloudletHistory(final Cloudlet cloudlet) {
+        if (cloudlet == null) {
+            return;
+        }
+
+        final long cloudletId = cloudlet.getId();
+        getCloudletFinishedList().removeIf(cle -> cle.getCloudlet().getId() == cloudletId);
+        if (isCloudletSubmittedListEnabled()) {
+            getCloudletSubmittedList().removeIf(cl -> cl.getId() == cloudletId);
+        }
+        try {
+            @SuppressWarnings("unchecked")
+            final Set<Cloudlet> returned = (Set<Cloudlet>) RETURNED_CLOUDLETS_FIELD.get(this);
+            returned.removeIf(cl -> cl.getId() == cloudletId);
+        } catch (IllegalAccessException e) {
+            throw new RuntimeException("Failed to prune scheduler returned cloudlet references", e);
+        }
+    }
+
+    public int getReturnedCloudletCount() {
+        return getCloudletReturnedList().size();
     }
 }

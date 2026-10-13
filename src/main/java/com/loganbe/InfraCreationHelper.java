@@ -116,9 +116,11 @@ public class InfraCreationHelper {
             // remember the host also appears fully allocated all the time (which is wrong, or unexpected, but at least explains why cloudlets aren't being ran in parallel)
             // fix - each VM must have its own CloudletScheduler instance (otherwise parts of the system become confused and start sharing a single VM!)
 
-            simSpec.getScheduler().enableCloudletSubmittedList(); // no idea why this is needed, but I want to use this list later!
-            vm.setCloudletScheduler(simSpec.getScheduler());
-            vm.getCloudletScheduler().enableCloudletSubmittedList();
+            final var scheduler = simSpec.getScheduler();
+            vm.setCloudletScheduler(scheduler);
+            if (SimulationConfig.ENABLE_SCHEDULER_SUBMITTED_LIST_HISTORY) {
+                vm.getCloudletScheduler().enableCloudletSubmittedList();
+            }
 
             vm.getCloudletScheduler().addOnCloudletResourceAllocationFail(evt -> {
                 LOGGER.info("Terminating Cloudlet : " + evt.getCloudlet().getId());
@@ -184,7 +186,11 @@ public class InfraCreationHelper {
             vm.setBw(ServersSpecification.BANDWIDTH / 10);
             vm.setSize(ServersSpecification.STORAGE / 10);
 
-            vm.setCloudletScheduler(simSpec.getScheduler());
+            final var scheduler = simSpec.getScheduler();
+            vm.setCloudletScheduler(scheduler);
+            if (SimulationConfig.ENABLE_SCHEDULER_SUBMITTED_LIST_HISTORY) {
+                vm.getCloudletScheduler().enableCloudletSubmittedList();
+            }
 
             vm.enableUtilizationStats();
 

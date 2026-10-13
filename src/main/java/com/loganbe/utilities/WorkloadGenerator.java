@@ -54,6 +54,24 @@ public class WorkloadGenerator {
         if (!ready.isEmpty()) {
             pendingCloudlets.removeAll(ready);
             broker.submitCloudletList(ready);
+
+            ready.forEach(app.cloudletGcTracker::register);
+
+            // debug broker list;
+            /*
+            System.out.println("getCloudletCreatedList : " + broker.getCloudletCreatedList().size());
+            System.out.println("getCloudletFinishedList : " + broker.getCloudletFinishedList().size());
+            System.out.println("getCloudletSubmittedList : " + broker.getCloudletSubmittedList().size());
+            System.out.println("getCloudletWaitingList : " + broker.getCloudletWaitingList().size());
+            System.out.println("----------------------------------------");
+            */
+
+            // I'm going to stop doing this, for now. clearing the finished list has undesirable effects (and doesn't actually release the memory)
+            broker.getCloudletCreatedList().clear();
+            broker.getCloudletSubmittedList().clear();
+
+            //broker.getCloudletFinishedList().clear(); // doesn't work!
+            // getCloudletFinishedList isn't exposing the underlying collection (a new wrapper each time!) - had to extend the broker, just for this fix!
         }
     }
 

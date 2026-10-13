@@ -45,6 +45,20 @@ public class CustomVm extends VmSimple {
         return vcpuMipsConsumedMap;
     }
 
+    public void clearCloudletTracking(final int cloudletId) {
+        for (final var vcpuEntry : vcpuMipsConsumedMap.entrySet()) {
+            vcpuEntry.getValue().remove(cloudletId);
+        }
+
+        vcpuMipsConsumedMap.entrySet().removeIf(entry -> entry.getValue().isEmpty());
+
+        for (int i = 0; i < vcpuUsageHistory.size(); i++) {
+            if (vcpuUsageHistory.get(i) == cloudletId) {
+                vcpuUsageHistory.set(i, -1L);
+            }
+        }
+    }
+
     /**
      * mipsRemaining (via getRemainingCloudletLength) is not a reliable source for unlimited length continuously running cloudlets
      * replaced with a measure of what has been done so far (via getFinishedLengthSoFar)

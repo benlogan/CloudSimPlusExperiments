@@ -2,6 +2,7 @@ package com.loganbe.application;
 
 import org.cloudsimplus.cloudlets.Cloudlet;
 import org.cloudsimplus.schedulers.cloudlet.CustomVm;
+import com.loganbe.utilities.CloudletGcTracker;
 
 import java.math.BigInteger;
 import java.util.List;
@@ -14,7 +15,10 @@ public class AbstractAppModel implements ApplicationModel {
     public BigInteger totalAccumulatedMi = BigInteger.valueOf(0);
     public BigInteger totalAccumulatedMiAll = BigInteger.valueOf(0); // not just completed, but everything!
 
+    public BigInteger cloudletCreatedCounter = BigInteger.valueOf(0);
     public BigInteger cloudletCounter = BigInteger.valueOf(0);
+
+    public final CloudletGcTracker cloudletGcTracker = new CloudletGcTracker();
 
     public AbstractAppModel() {}
 

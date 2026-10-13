@@ -9,12 +9,10 @@ import com.loganbe.power.Power;
 import com.loganbe.templates.ServersSpecification;
 import com.loganbe.templates.SimSpecFromFileLegacy;
 import com.loganbe.templates.SimSpecInterfaceHomogenous;
-import com.loganbe.utilities.DeltaHelper;
-import com.loganbe.utilities.ExportTimeSeriesCsv;
-import com.loganbe.utilities.Maths;
-import com.loganbe.utilities.SamplingMetrics;
+import com.loganbe.utilities.*;
+import com.sun.management.HotSpotDiagnosticMXBean;
 import org.cloudsimplus.brokers.DatacenterBroker;
-import org.cloudsimplus.brokers.DatacenterBrokerSimple;
+import org.cloudsimplus.brokers.DatacenterBrokerSimpleFixed;
 import org.cloudsimplus.cloudlets.Cloudlet;
 import org.cloudsimplus.core.CloudSimPlus;
 import org.cloudsimplus.datacenters.Datacenter;
@@ -25,6 +23,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.IOException;
+import java.lang.management.ManagementFactory;
 import java.math.BigInteger;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -83,7 +83,7 @@ public class Main {
         datacenter = InfraCreationHelper.createDatacenter(simSpec, simulation);
 
         // creates a broker; software acting on behalf of the cloud customer to manage their VMs & Cloudlets
-        broker = new DatacenterBrokerSimple(simulation);
+        broker = new DatacenterBrokerSimpleFixed(simulation);
 
         // likely need to experiment here later - with different scheduling/allocation strategies
         // perhaps one that creates new cloudlets when others finish - simulating open-ended execution
@@ -108,7 +108,7 @@ public class Main {
         } else if(simSpec.getApplicationType().equals("BATCH")) {
             app = new BatchApp(simSpec.getCloudletSpecification().getCloudlet_length(), simSpec.getBatchAppSpecification().getCloudlet_count(), simSpec.getCloudletSpecification().getCloudlet_pes());
         } else {
-            app = null;
+            throw new IllegalStateException("Unsupported application type: " + simSpec.getApplicationType());
         }
 
         cloudletList = app.generateInitialWorkload(vmList);
@@ -186,6 +186,9 @@ public class Main {
         // sampling - we used to do this via addOnClockTickListener, but that is NOT consistent
         // you will get a variable number of events, with random load
         // better to use a custom sampler at a fixed interval - for charting etc
+        // Note: SAMPLING_INTERVAL is independent of SCHEDULING_INTERVAL
+        // SCHEDULING_INTERVAL controls datacenter event processing
+        // SAMPLING_INTERVAL controls metrics collection frequency
 
         SamplingMetrics metricsSampler = new SamplingMetrics(
                 simulation,
@@ -194,9 +197,13 @@ public class Main {
                 app,
                 vmList,
                 cloudletList,
-                SCHEDULING_INTERVAL,
+                SimulationConfig.SAMPLING_INTERVAL,
                 DURATION);
         metricsSampler.start();
+
+        // release the startup list only after the sampler has taken its own copy of the initial workload.
+        // this avoids pinning the cloudlets in Main for the lifetime of the simulation.
+        cloudletList = null;
 
         // periodically check for new workload (e.g. for web apps, additional cloudlets are added during sim execution)
         // this used to be outside the sampling loop, but I'd rather it run every 'step'
@@ -217,20 +224,15 @@ public class Main {
         }
         simulation.start();
 
-        int incomplete = broker.getCloudletSubmittedList().size() - broker.getCloudletFinishedList().size();
-        if (incomplete > 0) {
-            LOGGER.error("Some Cloudlets Remain Unfinished : " + incomplete);
-            long incompleteMI = 0;
-            for(Cloudlet cloudlet : broker.getCloudletSubmittedList()) {
-                if(cloudlet.isRunning()) {
-                    //LOGGER.error("CLOUDLET STILL RUNNING : " + cloudlet.getId());
-                    //LOGGER.error("CLOUDLET FINISHED SO FAR : " + cloudlet.getFinishedLengthSoFar());
-                    incompleteMI += cloudlet.getFinishedLengthSoFar();
-                }
-            }
-            LOGGER.error("MI associated with incomplete cloudlets (in flight) : " + incompleteMI);
-            // FIXME in theory this should be counted towards 'work completed', but its usually small
-        }
+        /*
+        try {
+            // end of sim memory dump - useful to see what memory hasn't been properly released...
+            dumpHeap("simulation-end-" + System.currentTimeMillis() + ".hprof", true);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }*/
+
+        LOGGER.info("Cloudlets finished : {}", app.cloudletCounter);
 
         LOGGER.info("Simulation End Time " + Maths.scaleAndRound(simulation.clockInHours()) + "h or " + Maths.scaleAndRound(simulation.clockInMinutes()) + "m");
 
@@ -262,12 +264,10 @@ public class Main {
         //LOGGER.info(app.totalAccumulatedMips + " = Total Work Completed (MI)");
         //LOGGER.info(app.totalAccumulatedMipsAll + " = Total Work Completed - NEW (MI)");
 
-        // this is based on the actual completed cloudlet length (not expected or specified), so should be closer to the truth!
-        BigInteger actualAccumulatedMips = new BigInteger(String.valueOf(0)); // TOTAL length, across ALL cores
-        for (Cloudlet cloudlet : broker.getCloudletFinishedList()) {
-            actualAccumulatedMips = actualAccumulatedMips.add(BigInteger.valueOf(cloudlet.getTotalLength()));
-        }
-        LOGGER.info(actualAccumulatedMips + " = Actual Work Completed (MI), for " + broker.getCloudletFinishedList().size() + " finished cloudlets");
+        // Use the app-level counters so the broker does not need to retain cloudlet history.
+        BigInteger actualAccumulatedMips = app.totalAccumulatedMi;
+        BigInteger totalFinishedCloudlets = app.cloudletCounter;
+        LOGGER.info(actualAccumulatedMips + " = Actual Work Completed (MI), for " + totalFinishedCloudlets + " finished cloudlets");
 
         //calculateWorkDelta(totalWorkExpected, totalWorkExpectedMax, actualAccumulatedMips);
         DeltaHelper.calculateWorkDelta(totalWorkExpectedMax, actualAccumulatedMips);
@@ -309,21 +309,52 @@ public class Main {
         //CloudletPrinter.printCloudletExecutionStatsPerVcpu(broker, vmList);
         //CloudletPrinter.printCloudletExecutionStatsPerVcpuTabular(broker, vmList);
 
-        ExportTimeSeriesCsv.exportTimeSeriesData(metricsSampler.getHostEnergy(), null, "energy",  friendlyDate + "/sim_data_energy_" + friendlyDate);
-        ExportTimeSeriesCsv.exportTimeSeriesData(metricsSampler.getHostUtil(), null, "utilisation", friendlyDate + "/sim_data_util_" + friendlyDate);
+        ExportTimeSeriesCsv.exportTimeSeriesData(metricsSampler.getHostEnergy(), null, "energy", generateFilename(friendlyDate,"/sim_data_energy"));
+        ExportTimeSeriesCsv.exportTimeSeriesData(metricsSampler.getHostUtil(), null, "utilisation", generateFilename(friendlyDate, "/sim_data_util"));
         // unreliable method; removing this distracting data
         //ExportTimeSeriesCsv.exportTimeSeriesData(metricsSampler.getHostUtilAllocation(), null, "utilisation (allocation)", friendlyDate + "/sim_data_util_allocation_" + friendlyDate);
-        ExportTimeSeriesCsv.exportTimeSeriesData(metricsSampler.getHostWork(), metricsSampler.getHostWorkCumulative(), "work", friendlyDate + "/sim_data_work_" + friendlyDate);
-        ExportTimeSeriesCsv.exportTimeSeriesData(metricsSampler.getHostSci(), metricsSampler.getHostSciCumulative(), "sci",friendlyDate + "/sim_data_sci_" + friendlyDate);
+        ExportTimeSeriesCsv.exportTimeSeriesData(metricsSampler.getHostWork(), metricsSampler.getHostWorkCumulative(), "work", generateFilename(friendlyDate, "/sim_data_work"));
+        ExportTimeSeriesCsv.exportTimeSeriesData(metricsSampler.getHostSci(), metricsSampler.getHostSciCumulative(), "sci", generateFilename(friendlyDate, "/sim_data_sci"));
+
+        // FIXME should probably move earlier - we don't want to be counting file write times etc
+        currentTime = System.currentTimeMillis() - currentTime;
+        long simDuration = currentTime/1000;
+
+        String metadata = "Simulation Date : " + friendlyDate + "\n"
+                + "Simulation Duration(s) : " + simDuration + "\n"
+                + "Simulation Sampling(s) : " + SimulationConfig.SAMPLING_INTERVAL + "\n"
+                + "No. Hosts : " + vmList.size();
+        FileUtilities.writeText(metadata, "data/" + generateFilename(friendlyDate,"/metadata") + ".txt");
 
         double totalEnergy = Power.calculateTotalEnergy(datacenter.getHostList(), metricsSampler.calculateAverageUtilisation(), actualAccumulatedMips);
         energyMap.put(simCounter, totalEnergy);
         workMap.put(simCounter, actualAccumulatedMips.doubleValue());
 
-        simCounter++;
+        LOGGER.info("Simulation Elapsed Time (real world) = " + simDuration + "s");
 
-        currentTime = System.currentTimeMillis() - currentTime;
-        LOGGER.info("Simulation Elapsed Time (real world) = " + currentTime/1000 + "s");
+        simCounter++;
+    }
+
+    /**
+     * simply generate the filename (using date)
+     * @param date
+     * @param filename
+     * @return
+     */
+    public String generateFilename(String date, String filename) {
+        return date + filename;
+    }
+
+    /**
+     * VERY useful to be able to call this from code, at the right time during execution
+     * rather than relying on a manual well-timed dump taken from the profiler
+     * @param path
+     * @param live
+     * @throws IOException
+     */
+    static void dumpHeap(String path, boolean live) throws IOException {
+        var bean = ManagementFactory.getPlatformMXBean(HotSpotDiagnosticMXBean.class);
+        bean.dumpHeap(path, live);
     }
 
 }

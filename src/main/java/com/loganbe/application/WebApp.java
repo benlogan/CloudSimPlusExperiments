@@ -1,5 +1,6 @@
 package com.loganbe.application;
 
+import com.loganbe.SimulationConfig;
 import com.loganbe.utilities.Maths;
 import org.cloudsimplus.cloudlets.Cloudlet;
 import org.cloudsimplus.cloudlets.CloudletSimpleFixed;
@@ -79,7 +80,7 @@ public class WebApp extends AbstractAppModel {
                 double desiredMeanBatch = batchMeanFracRun * maxRequestCount;
                 requestCount = (int) Maths.twoPointLong(rng, desiredMeanBatch, 1, maxRequestCount);
             } else {
-                // old approach - uniform distribution across multiple sim runs - no good
+                // old approach - uniform distribution across multiple sim runs
                 // requestCount = (int)(Math.random() * maxRequestCount) + 1;
                 requestCount = maxRequestCount;
             }
@@ -148,6 +149,14 @@ public class WebApp extends AbstractAppModel {
                     // note you do NOT need to add to the 'all' collection again - the final update covers it
 
                     cloudletCounter = cloudletCounter.add(BigInteger.valueOf(1));
+
+                    cloudletLastFinish.remove(event.getCloudlet().getId());
+
+                    if (SimulationConfig.CLEAR_CLOUDLET_MIPS_HISTORY_ON_FINISH
+                            && event.getCloudlet().getVm() instanceof CustomVm customVm) {
+                        customVm.clearCloudletTracking((int) event.getCloudlet().getId());
+                    }
+
                 });
 
                 // note - cloudlets that can't get resource immediately (over-provisioned), should be queued
@@ -157,6 +166,7 @@ public class WebApp extends AbstractAppModel {
                 // this is somewhat like the behaviour of a webapp (where requests quickly timeout)
 
                 list.add(cloudlet);
+                cloudletCreatedCounter = cloudletCreatedCounter.add(BigInteger.valueOf(1));
             }
 
             // FIXME do I need to ensure that the previous 'request' (i.e. cloudlet) will have completed, in the interval
@@ -179,7 +189,9 @@ public class WebApp extends AbstractAppModel {
                 gap = Maths.twoPointDouble(rng, gapMeanRun, GAP_MIN, GAP_MAX);
             } else {
                 //nextArrivalTime += (int)(Math.random() * 10) + 1;
-                gap = 1.8;
+
+                gap = 1.8; // 1.8s for 55.56% utilisation (work done, not host)
+                //gap = getNextArrivalTime(60);
             }
             nextArrivalTime += gap;
 
@@ -195,6 +207,21 @@ public class WebApp extends AbstractAppModel {
         //System.out.println(stepCount + ";" + requestCount);
 
         return list;
+    }
+
+    /**
+     * take the desired host utilisation and return the next arrival time (in seconds)
+     * tuned based on 1.7 gap resulting in 76.42% utilisation
+     *
+     * FIXME not a reliable method of calculating accurate gaps for other utilisation levels
+     *
+     * @param desiredHostUtilisation
+     * @return
+     */
+    public double getNextArrivalTime(double desiredHostUtilisation) {
+        double gap = 1.7 * 76.42 / (100.0 - 76.42);
+        System.out.println("gap = " + gap);
+        return gap * (100.0 - desiredHostUtilisation) / desiredHostUtilisation;
     }
 
 }
