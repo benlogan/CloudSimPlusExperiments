@@ -36,4 +36,17 @@ public class FileUtilities {
         }
     }
 
+    public static void writeText(String text, String filePathString) {
+        Path filePath = Paths.get(filePathString);
+        try {
+            // Create parent directories if they do not exist
+            Files.createDirectories(filePath.getParent());
+
+            try (BufferedWriter writer = Files.newBufferedWriter(filePath)) {
+                writer.write(text);
+            }
+        } catch (IOException e) {
+            LOGGER.error("Error writing to file", e);
+        }
+    }
 }

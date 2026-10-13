@@ -50,6 +50,4 @@ public class Sampler extends CloudSimEntity {
         }
     }
 
-    //@Override
-    //protected void shutdownInternal() { /* no-op */ }
 }

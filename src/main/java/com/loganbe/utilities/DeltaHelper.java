@@ -44,7 +44,7 @@ public class DeltaHelper {
             LOGGER.warn(Math.abs(deltaWork) + " = Excess Work (MI) = " + Maths.quickRound(deltaPercentage) + "%");
         }
 
-        LOGGER.info(Maths.quickRound((100 - deltaPercentage)) + "% = Utilisation (using work complete)");
+        LOGGER.info(Maths.quickRound((100 - deltaPercentage)) + "% = Utilisation (using work done)");
         //LOGGER.info((100 - deltaPercentageMax) + "% = Utilisation (using theoretical max)");
 
         return deltaPercentage;
