@@ -21,17 +21,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicLong;
-
-import static com.loganbe.utilities.Maths.SCALING_FACTOR;
 
 public class SamplingMetrics {
 
     public static final Logger LOGGER = LoggerFactory.getLogger(SamplingMetrics.class.getSimpleName());
-
-    private static final int DEFAULT_CORES = 16;
-    //private static final double DEFAULT_ARCHIVE_INTERVAL = 600.0; // archive every 10 minutes of sim time (600 seconds)
-    //private static final int DEFAULT_MAX_CLOUDLETS_IN_MEMORY = 100_000; // keep 100k recent cloudlets in broker list
 
     private final CloudSimPlus simulation;
     private final Datacenter datacenter;
@@ -51,14 +44,13 @@ public class SamplingMetrics {
     private final Map<Long, List<Double>> hostUtilAllocation = new HashMap<>();     // using the default framework methodology (allocation based)
 
     private final Map<Long, List<Double>> hostEnergy = new HashMap<>();             // current hourly energy rate (power) - NOT energy consumed since last sample (that would be much smaller)
+    private final Map<Long, Double> hostEnergyCumulative = new HashMap<>();         // one value (per host), not a time series
+    private final Map<Long, Double> hostEmbodiedCumulative = new HashMap<>();       // one value (per host), not a time series
 
     private final Map<Long, List<Double>> hostSci = new HashMap<>();                // point-in-time SCI
     private final Map<Long, List<Double>> hostSciCumulative = new HashMap<>();      // cumulative SCI (not point in time) - should converge with average for the sim run
 
     private final Map<Long, BigInteger> lastAccumulatedMips = new HashMap<>();
-
-    private final AtomicLong cumulativeEnergyScaled = new AtomicLong();
-    private final AtomicLong cumulativeEmbodied = new AtomicLong();
 
     private WorkloadGenerator workloadGenerator;
 
@@ -84,10 +76,6 @@ public class SamplingMetrics {
 
         LOGGER.info("Using broker implementation: {}", broker.getClass().getName());
 
-        // Initialize archivers for memory management
-        //this.cloudletArchiver = new CloudletArchiver(DEFAULT_ARCHIVE_INTERVAL, DEFAULT_MAX_CLOUDLETS_IN_MEMORY);
-        //this.samplingArchiver = new SamplingMetricsArchiver(DEFAULT_ARCHIVE_INTERVAL);
-
         for (final Host host : datacenter.getHostList()) {
             lastAccumulatedMips.put(host.getId(), BigInteger.ZERO);
         }
@@ -105,12 +93,6 @@ public class SamplingMetrics {
     public void takeSample(final double time) {
         sampleHostMetrics();
         workloadGenerator.generateAndSubmitWorkload(time);
-
-        // Metrics archiving is intentionally disabled for now.
-        // Keep the code in place so it can be re-enabled later when archive output paths are finalized.
-        // samplingArchiver.checkAndArchive(time, hostEnergy, hostUtil, hostWork, hostSci, "data");
-        // Temporarily disabled while we isolate whether cloudlet archiving is causing the slowdown.
-        // cloudletArchiver.checkAndArchive(time, broker);
 
         if (SimulationConfig.LOG_CLOUDLET_LIFECYCLE_DIAGNOSTICS
                 && time - lastCloudletLifecycleLogTime >= SimulationConfig.CLOUDLET_LIFECYCLE_DIAGNOSTICS_INTERVAL) {
@@ -160,11 +142,21 @@ public class SamplingMetrics {
 
     private void sampleHostMetrics() {
         for (final Host host : datacenter.getHostList()) {
+            if(hostEnergyCumulative.get(host.getId()) == null) {
+                hostEnergyCumulative.put(host.getId(), 0.0);
+            }
+            if(hostEmbodiedCumulative.get(host.getId()) == null) {
+                hostEmbodiedCumulative.put(host.getId(), 0.0);
+            }
+
             final long hostId = host.getId();
+
+            // important note - cumulative values are generally for all hosts (not just current host)
+            // useful because we only write the data for host=0
 
             // WORK DONE
 
-            final BigInteger accumulatedWorkDelta = getAccumulatedMipsDelta(hostId);
+            final BigInteger accumulatedWorkDelta = getAccumulatedMipsDelta(hostId, datacenter.getHostList().size());
 
             getOrCreateSeries(hostWork, hostId).add(accumulatedWorkDelta.doubleValue());
             getOrCreateSeries(hostWorkCumulative, hostId).add(app.totalAccumulatedMiAll.doubleValue());
@@ -178,7 +170,7 @@ public class SamplingMetrics {
             // accumulatedWorkDelta = total work across all hosts in this sampling interval
             // workPerHost = average work per host (total work / number of hosts)
             // hostCapacityInInterval = host's total MIPS capacity * tickInterval
-            final double workPerHost = accumulatedWorkDelta.doubleValue(); // THIS IS ALREADY PER HOST! / datacenter.getHostList().size();
+            final double workPerHost = accumulatedWorkDelta.doubleValue(); // THIS IS ALREADY PER HOST!
 
             // Calculate actual host capacity from its PEs
             final int hostCores = Math.toIntExact(host.getPesNumber());
@@ -211,44 +203,51 @@ public class SamplingMetrics {
 
             // Power.calculateEnergyEfficiencyFromHost(host, accumulatedWorkDelta); - not used at the moment
 
-            final double currentEnergyPerInterval = (currentEnergyRate / 3600) / 10;
-            cumulativeEnergyScaled.getAndAdd(Math.round(currentEnergyPerInterval * SCALING_FACTOR));
+            final double currentEnergyPerInterval = (currentEnergyRate / 3600) / 1000; // convert from Wh to kWh for the interval
+            double cumulativeEnergy = hostEnergyCumulative.get(hostId) + currentEnergyPerInterval;
+            hostEnergyCumulative.put(hostId, cumulativeEnergy);
 
-            // SCI
-
+            // SCI (point-in-time - across the interval)
+            // important - this will never match the cumulative SCI, or the final overall SCI
+            // because we will sample highly utilised intervals (so SCI will be lower)
+            // and intervals where no work is completed (so SCI will hit 1)
+            // so the cumulative SCI is a better representation of the overall SCI for the sim run
             final List<Double> sciTimeSeries = getOrCreateSeries(hostSci, hostId);
-            final List<Double> sciCumTimeSeries = getOrCreateSeries(hostSciCumulative, hostId);
 
-            final double cumulativeEnergyDescaled = cumulativeEnergyScaled.get() / 1_000_000.0;
-            double operationalCumulative = Carbon.energyToCarbon(cumulativeEnergyDescaled);
             final double operational = Carbon.energyToCarbon(currentEnergyPerInterval);
 
-            final double embodiedTotal = calculateAndAccumulateEmbodiedEmissions();
-            sciTimeSeries.add(Sci.calculateSci(operational, embodiedTotal, accumulatedWorkDelta.doubleValue(), false));
+            final HostSimpleFixed hsf = (HostSimpleFixed) host;
+            final double embodied = calculateEmbodiedEmissions(hsf.embodiedEmissions);
 
-            operationalCumulative = operationalCumulative * datacenter.getHostList().size();
-            final double cumulativeEmbodiedTotal = cumulativeEmbodied.get() / (double) SCALING_FACTOR;
-            sciCumTimeSeries.add(Sci.calculateSci(operationalCumulative, cumulativeEmbodiedTotal, app.totalAccumulatedMiAll.doubleValue(), false));
+            final double rate = accumulatedWorkDelta.doubleValue();
+
+            sciTimeSeries.add(Sci.calculateSci(operational, embodied, rate, false));
+
+            // SCI (cumulative and one host only)
+            final List<Double> sciCumTimeSeries = getOrCreateSeries(hostSciCumulative, hostId);
+
+            final double cumulativeEnergyDescaled = cumulativeEnergy;
+
+            double operationalCumulative = Carbon.energyToCarbon(cumulativeEnergyDescaled);
+
+            double embodiedCumulative = hostEmbodiedCumulative.get(hostId) + embodied;
+            hostEmbodiedCumulative.put(hostId, embodiedCumulative);
+
+            final double rateCumulative = app.totalAccumulatedMiAll.doubleValue() / datacenter.getHostList().size();
+
+            sciCumTimeSeries.add(Sci.calculateSci(operationalCumulative, embodiedCumulative, rateCumulative, false));
         }
     }
 
-    private BigInteger getAccumulatedMipsDelta(final long hostId) {
-        final BigInteger current = app.totalAccumulatedMiAll;
+    private BigInteger getAccumulatedMipsDelta(final long hostId, final int hostCount) {
+        final BigInteger current = app.totalAccumulatedMiAll.divide(BigInteger.valueOf(hostCount));
         final BigInteger previous = lastAccumulatedMips.getOrDefault(hostId, BigInteger.ZERO);
         lastAccumulatedMips.put(hostId, current);
         return current.subtract(previous);
     }
 
-    private double calculateAndAccumulateEmbodiedEmissions() {
-        double embodiedTotal = 0;
-        for (final Host hostNested : datacenter.getHostList()) {
-            final HostSimpleFixed hsf = (HostSimpleFixed) hostNested;
-            embodiedTotal += hsf.embodiedEmissions;
-        }
-
-        embodiedTotal = Sci.amortizeEmbodiedToSample(embodiedTotal);
-        cumulativeEmbodied.getAndAdd(Math.round(embodiedTotal * SCALING_FACTOR));
-        return embodiedTotal;
+    private double calculateEmbodiedEmissions(double embodiedEmissions) {
+        return Sci.amortizeEmbodiedToSample(embodiedEmissions);
     }
 
     /*

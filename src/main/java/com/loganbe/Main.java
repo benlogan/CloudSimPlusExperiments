@@ -268,6 +268,7 @@ public class Main {
         BigInteger actualAccumulatedMips = app.totalAccumulatedMi;
         BigInteger totalFinishedCloudlets = app.cloudletCounter;
         LOGGER.info(actualAccumulatedMips + " = Actual Work Completed (MI), for " + totalFinishedCloudlets + " finished cloudlets");
+        LOGGER.info(app.totalAccumulatedMiAll + " = Total Work Done, including incomplete (MI), for " + totalFinishedCloudlets + " finished cloudlets");
 
         //calculateWorkDelta(totalWorkExpected, totalWorkExpectedMax, actualAccumulatedMips);
         DeltaHelper.calculateWorkDelta(totalWorkExpectedMax, actualAccumulatedMips);
@@ -326,7 +327,7 @@ public class Main {
                 + "No. Hosts : " + vmList.size();
         FileUtilities.writeText(metadata, "data/" + generateFilename(friendlyDate,"/metadata") + ".txt");
 
-        double totalEnergy = Power.calculateTotalEnergy(datacenter.getHostList(), metricsSampler.calculateAverageUtilisation(), actualAccumulatedMips);
+        double totalEnergy = Power.calculateTotalEnergy(datacenter.getHostList(), metricsSampler.calculateAverageUtilisation(), actualAccumulatedMips, app.totalAccumulatedMiAll);
         energyMap.put(simCounter, totalEnergy);
         workMap.put(simCounter, actualAccumulatedMips.doubleValue());
 

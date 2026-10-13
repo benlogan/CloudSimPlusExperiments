@@ -35,9 +35,9 @@ public class ExportTimeSeriesCsv {
                 if(hostId == 0) { // always the first host - they will all be the same, normally
                     final Object value = map.get(hostId).get(t);
                     if(name.equals("sci")) {
-                        csv.append(SEPERATOR).append(String.format("%.4f", ((Number) value).doubleValue()));
+                        csv.append(SEPERATOR).append(String.format("%.8f", ((Number) value).doubleValue()));
                         if(mapCumulative != null) {
-                            csv.append(SEPERATOR).append(String.format("%.4f", ((Number) mapCumulative.get(hostId).get(t)).doubleValue()));
+                            csv.append(SEPERATOR).append(String.format("%.8f", ((Number) mapCumulative.get(hostId).get(t)).doubleValue()));
                         }
                     } else {
                         csv.append(SEPERATOR).append(value);

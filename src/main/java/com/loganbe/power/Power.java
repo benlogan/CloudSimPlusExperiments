@@ -83,10 +83,11 @@ public class Power {
      * @param hostList
      * @param hostUtilisation - note this function relies on whatever utilisation approach was chosen earlier -
      *                          it simply uses an average of the utilisation values calculated during sampling
-     * @param workDone
+     * @param workCompleted     MIs completed (associated with completed cloudlets)
+     * @param workDone          MIs done, total (associated with all cloudlets, including those still running)
      * @return energy (Wh NOT kWh)
      */
-    public static double calculateTotalEnergy(List<Host> hostList, Map<Long, Double> hostUtilisation, BigInteger workDone) {
+    public static double calculateTotalEnergy(List<Host> hostList, Map<Long, Double> hostUtilisation, BigInteger workCompleted, BigInteger workDone) {
         double totalPower = 0;
         double maxPower = 0;
         double totalEnergy = 0;
@@ -121,9 +122,7 @@ public class Power {
         double utilisation = Maths.quickRound((sumUtilisation / hostUtilisation.size())*100);
         LOGGER.info(utilisation + "% = Average Host Utilisation");
 
-        //System.out.println("Total Power = " + df.format(totalPower) + "W");
-
-        LOGGER.info("Energy Consumption = " + df.format(totalPower) + "Wh (i.e. per hour)");
+        //LOGGER.info("Energy Consumption = " + df.format(totalPower) + "Wh (i.e. per hour)"); // duplicated later, power = energy per hour
 
         LOGGER.info("Max Energy Consumption = " + df.format(maxPower) + "Wh (i.e. per hour)");
 
@@ -133,22 +132,20 @@ public class Power {
         LOGGER.info("Total Compute Energy = " + df.format(totalEnergy) + "Wh (" + df1.format(totalEnergy/1000) + "kWh) consumed in " + df1.format(upTimeHours) + "hr(s)");
 
         // energy efficiency - work done (MIPS), per unit of energy consumed
-        double energyEfficiency = calculateEnergyEfficiency(totalEnergy, workDone);
+        double energyEfficiency = calculateEnergyEfficiency(totalEnergy, workCompleted);
         LOGGER.info("Average Energy Efficiency (work per unit of energy) : " + energyEfficiency + "MI/Wh");
 
-        LOGGER.info("Total Compute Carbon = " + new Carbon().energyToCarbon(totalEnergy/1000) + "kgCO₂e");
+        //LOGGER.info("Total Compute Carbon = " + new Carbon().energyToCarbon(totalEnergy/1000) / 1000 + "kgCO₂e");
 
-        double operational = new Carbon().energyToCarbon(totalEnergy);
+        double operational = new Carbon().energyToCarbon(totalEnergy/1000);
         LOGGER.info("Operation Emissions = " + operational + "gCO₂e");
 
-        BigInteger rate = workDone; // let's use the unit of work - its perfect for this (work done)
-        //LOGGER.info("rate = " + rate.doubleValue());
+        BigInteger rate = workDone; // let's use the unit of work - its perfect for this (ALL work done, not just completed)
 
         embodiedTotal = Sci.amortizeEmbodiedToHour(embodiedTotal);
-        //LOGGER.info("embodiedTotal = " + embodiedTotal);
 
         sci = Sci.calculateSci(operational, embodiedTotal, rate.doubleValue(), true);
-        LOGGER.info("SCI = " + sci + "mgCO₂e / MI");
+        LOGGER.info("SCI = " + sci + "gCO₂e / MI");
 
         LOGGER.info("DC Overhead Energy = " + df1.format(new Pue().incrementalEnergyOverhead(totalEnergy)/1000) + "kWh");
 

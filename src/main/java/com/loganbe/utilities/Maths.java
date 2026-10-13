@@ -10,7 +10,7 @@ import java.util.SplittableRandom;
  */
 public class Maths {
 
-    public final static int SCALING_FACTOR = 1_000_000;
+    public final static double SCALING_FACTOR = 1_000_000;
 
     public static long twoPointLong(SplittableRandom rng, double desiredMean, long min, long max) {
         if (min >= max) return min;

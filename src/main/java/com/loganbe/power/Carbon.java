@@ -28,9 +28,9 @@ public class Carbon {
 
     /**
      * convert energy (power over time) to carbon (emitted)
-     * in kg
+     * in g
      * @param energy (kWh)
-     * @return carbon (kg)
+     * @return carbon (g)
      */
     public static double energyToCarbon(double energy) {
         //double carbonG = energy * carbonIntensity;
@@ -39,8 +39,8 @@ public class Carbon {
 
         double carbonG = energy * CARBON_INTENSITY_CLEAN;
 
-        return Maths.scaleAndRound(carbonG/1000);
-        //return carbonG/1000;
+        return carbonG;
+        //return Maths.scaleAndRound(carbonG/1000);
     }
 
     /**

@@ -1,6 +1,5 @@
 package com.loganbe.power;
 
-import com.loganbe.utilities.Maths;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,7 +16,7 @@ public class Sci {
      * @param operationalEmissions (gCO₂e)
      * @param embodiedEmissions (gCO₂e)
      * @param rate
-     * @return SCI score (mgCO₂e / rate)
+     * @return SCI score (gCO₂e / rate)
      */
     public static double calculateSci(double operationalEmissions, double embodiedEmissions, double rate, boolean log) {
 
@@ -28,7 +27,7 @@ public class Sci {
         }
 
         double sci = (operationalEmissions + embodiedEmissions) / rate;
-        sci = Maths.scaleAndRound(sci * 1000); // convert to mg - more readable (and round/scale)
+        //sci = Maths.scaleAndRound(sci * 1000); // convert to mg - more readable (and round/scale)
 
         if(log) {
             LOGGER.info("Calculating GSF SCI score...");
@@ -42,12 +41,12 @@ public class Sci {
     }
 
     /**
-     * amortize emissions to the normal simulation sampling window (0.1s)
+     * amortize emissions to the normal simulation sampling window (1s)
      * @param emissions
      * @return
      */
     public static double amortizeEmbodiedToSample(double emissions) {
-        return ((emissions / 4) / 8760) / 36_000; // per year, per hour, per sample
+        return ((emissions / 4) / 8760) / 3600; // per year, per hour, per sample (second)
     }
 
     /**
