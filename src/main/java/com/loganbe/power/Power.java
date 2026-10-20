@@ -12,14 +12,17 @@ import java.text.DecimalFormat;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * static and max power numbers are sourced from SPEC;
+ * https://www.spec.org/power_ssj2008/results/res2019q4/power_ssj2008-20191203-01015.html
+ */
 public class Power {
 
     // defines the power a Host uses, even if it's idle (in Watts)
-    public static final double STATIC_POWER = 470;
-    // idle power ~60–70% of max is typical for servers (e.g. 65% of 800W = 520W)
+    public static final double STATIC_POWER = 60.8;
 
     // max power a Host uses (in Watts)
-    public static final int MAX_POWER = 1200;
+    public static final int MAX_POWER = 250;
 
     // host power consumption (in Watts) during startup
     public static final double HOST_START_UP_POWER = 5;
