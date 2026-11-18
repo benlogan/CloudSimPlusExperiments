@@ -13,9 +13,9 @@ public class Pue {
     // using the generally accepted hyper-scale average, for now
     //public double pue = 1.2; // @ 1.2, ~17% is overhead
 
-    public static double PUE_PRIVATE = 1.58;
-    public static double PUE_HYBRID = 1.34;
-    public static double PUE_CLOUD = 1.10;
+    public static double PUE_HIGHER = 1.58;         // e.g. private cloud
+    public static double PUE_INTERMEDIATE = 1.34;   // e.g. hybrid cloud
+    public static double PUE_LOWER = 1.10;          // e.g. public cloud
 
     /**
      * take the server energy and, using the pue score, calculate the DC energy overhead
@@ -25,7 +25,7 @@ public class Pue {
     public static double incrementalEnergyOverhead(double serverEnergy) {
         // Overhead Energy = (PUE - 1) × Server Energy Usage
         //return (pue - 1) * serverEnergy;
-        double energyOverhead = (PUE_CLOUD - 1) * serverEnergy;
+        double energyOverhead = (PUE_INTERMEDIATE - 1) * serverEnergy;
         return Maths.scaleAndRound(energyOverhead);
     }
 

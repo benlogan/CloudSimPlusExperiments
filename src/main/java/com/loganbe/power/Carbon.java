@@ -22,9 +22,9 @@ public class Carbon {
     // carbon intensity (gCO₂/kWh)
     private static double CARBON_INTENSITY_DEFAULT = 160; // UK average
 
-    private static double CARBON_INTENSITY_CLEAN = 40.5;
-    private static double CARBON_INTENSITY_MIXED = 214;
-    private static double CARBON_INTENSITY_DIRTY = 499.5;
+    private static double CARBON_INTENSITY_LOW = 50;
+    private static double CARBON_INTENSITY_MEDIUM = 250;
+    private static double CARBON_INTENSITY_HIGH = 500;
 
     /**
      * convert energy (power over time) to carbon (emitted)
@@ -37,7 +37,7 @@ public class Carbon {
 
         //double carbonG = energy * liveCarbonIntensity();
 
-        double carbonG = energy * CARBON_INTENSITY_CLEAN;
+        double carbonG = energy * CARBON_INTENSITY_MEDIUM;
 
         return carbonG;
         //return Maths.scaleAndRound(carbonG/1000);
