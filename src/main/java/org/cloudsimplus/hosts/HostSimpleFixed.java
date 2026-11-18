@@ -15,7 +15,7 @@ import java.util.List;
 public class HostSimpleFixed extends HostSimple {
 
     // FIXME - move to config later
-    public double embodiedEmissions = 900_000; // accepted average (g - to match SCI)
+    public double embodiedEmissions = 900_000; // accepted average - taken from real HP server data (g - to match SCI)
 
     public HostSimpleFixed(List<Pe> peList) {
         super(peList);
