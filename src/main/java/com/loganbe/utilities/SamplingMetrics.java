@@ -208,10 +208,6 @@ public class SamplingMetrics {
             hostEnergyCumulative.put(hostId, cumulativeEnergy);
 
             // SCI (point-in-time - across the interval)
-            // important - this will never match the cumulative SCI, or the final overall SCI
-            // because we will sample highly utilised intervals (so SCI will be lower)
-            // and intervals where no work is completed (so SCI will hit 1)
-            // so the cumulative SCI is a better representation of the overall SCI for the sim run
             final List<Double> sciTimeSeries = getOrCreateSeries(hostSci, hostId);
 
             final double operational = Carbon.energyToCarbon(currentEnergyPerInterval);
@@ -235,7 +231,11 @@ public class SamplingMetrics {
 
             final double rateCumulative = app.totalAccumulatedMiAll.doubleValue() / datacenter.getHostList().size();
 
-            sciCumTimeSeries.add(Sci.calculateSci(operationalCumulative, embodiedCumulative, rateCumulative, false));
+            //if(host.getId() == 0) {
+            //    sciCumTimeSeries.add(Sci.calculateSci(operationalCumulative, embodiedCumulative, rateCumulative, true));
+            //} else {
+                sciCumTimeSeries.add(Sci.calculateSci(operationalCumulative, embodiedCumulative, rateCumulative, false));
+            //}
         }
     }
 
