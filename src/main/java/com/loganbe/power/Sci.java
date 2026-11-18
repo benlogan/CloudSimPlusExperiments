@@ -1,5 +1,6 @@
 package com.loganbe.power;
 
+import com.loganbe.utilities.Maths;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -16,18 +17,17 @@ public class Sci {
      * @param operationalEmissions (gCO₂e)
      * @param embodiedEmissions (gCO₂e)
      * @param rate
-     * @return SCI score (gCO₂e / rate)
+     * @return SCI score (mgCO₂e / rate)
      */
     public static double calculateSci(double operationalEmissions, double embodiedEmissions, double rate, boolean log) {
 
         if(rate == 0) {
             //LOGGER.error("Can't calculate SCI with a zero rate! setting a tiny amount of work done!");
-            return 1; // SCI doesn't handle zero work. fix the SCI at 1 - not a good score
-            //rate = 0.000000001;
+            return -1; // SCI doesn't handle zero work. fix the SCI at 1 - not a good score
         }
 
         double sci = (operationalEmissions + embodiedEmissions) / rate;
-        //sci = Maths.scaleAndRound(sci * 1000); // convert to mg - more readable (and round/scale)
+        sci = Maths.scaleAndRound(sci * 1000); // convert to mg - more readable (and round/scale)
 
         if(log) {
             LOGGER.info("Calculating GSF SCI score...");

@@ -147,8 +147,9 @@ public class Power {
 
         embodiedTotal = Sci.amortizeEmbodiedToHour(embodiedTotal);
 
+        DecimalFormat df2 = new DecimalFormat("#.#####");
         sci = Sci.calculateSci(operational, embodiedTotal, rate.doubleValue(), true);
-        LOGGER.info("SCI = " + sci + "gCO₂e / MI");
+        LOGGER.info("SCI = " + df2.format(sci) + " mgCO₂e / MI");
 
         LOGGER.info("DC Overhead Energy = " + df1.format(new Pue().incrementalEnergyOverhead(totalEnergy)/1000) + "kWh");
 
