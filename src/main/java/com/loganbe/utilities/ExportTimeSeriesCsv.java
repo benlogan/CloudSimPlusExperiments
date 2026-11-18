@@ -35,9 +35,17 @@ public class ExportTimeSeriesCsv {
                 if(hostId == 0) { // always the first host - they will all be the same, normally
                     final Object value = map.get(hostId).get(t);
                     if(name.equals("sci")) {
-                        csv.append(SEPERATOR).append(String.format("%.8f", ((Number) value).doubleValue()));
+                        if(((Number) value).doubleValue() == -1) {
+                            csv.append(SEPERATOR);
+                        } else {
+                            csv.append(SEPERATOR).append(String.format("%.8f", ((Number) value).doubleValue()));
+                        }
                         if(mapCumulative != null) {
-                            csv.append(SEPERATOR).append(String.format("%.8f", ((Number) mapCumulative.get(hostId).get(t)).doubleValue()));
+                            if(((Number) mapCumulative.get(hostId).get(t)).doubleValue() == -1) {
+                                csv.append(SEPERATOR);
+                            } else {
+                                csv.append(SEPERATOR).append(String.format("%.8f", ((Number) mapCumulative.get(hostId).get(t)).doubleValue()));
+                            }
                         }
                     } else {
                         csv.append(SEPERATOR).append(value);
